@@ -3,6 +3,8 @@ import UploadView from "@/components/sentinel/UploadView";
 import ProcessingView from "@/components/sentinel/ProcessingView";
 import DashboardView from "@/components/sentinel/DashboardView";
 import { VideoAnalysis } from "@/types/sentinel";
+import axios from "axios";
+import { toast } from "sonner";
 
 type View = "upload" | "processing" | "dashboard";
 
@@ -13,43 +15,28 @@ const Index = () => {
   const handleVideoUpload = async (file: File) => {
     setCurrentView("processing");
     
-    // Simulate API call to backend
-    // In production, this would call http://localhost:8000/analyze
-    setTimeout(() => {
-      // Mock data for demonstration
-      const mockData: VideoAnalysis = {
-        videoUrl: URL.createObjectURL(file),
-        events: [
-          {
-            id: 1,
-            timestamp: "00:00:12",
-            class: "person",
-            confidence: 0.95,
-            threatScore: 75,
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await axios.post<VideoAnalysis>(
+        "http://localhost:8000/analyze",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
           },
-          {
-            id: 2,
-            timestamp: "00:00:24",
-            class: "car",
-            confidence: 0.88,
-            threatScore: 45,
-          },
-          {
-            id: 3,
-            timestamp: "00:00:36",
-            class: "person",
-            confidence: 0.92,
-            threatScore: 85,
-          },
-        ],
-        stats: {
-          totalDetections: 3,
-          highThreatEvents: 2,
-        },
-      };
-      setAnalysisData(mockData);
+        }
+      );
+
+      setAnalysisData(response.data);
       setCurrentView("dashboard");
-    }, 3000);
+      toast.success("Video analysis complete!");
+    } catch (error) {
+      console.error("Analysis error:", error);
+      toast.error("Failed to analyze video. Make sure the backend is running on http://localhost:8000");
+      setCurrentView("upload");
+    }
   };
 
   const handleReset = () => {

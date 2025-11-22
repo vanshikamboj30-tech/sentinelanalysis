@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Brain, Send } from "lucide-react";
 import { DetectionEvent } from "@/types/sentinel";
 import { toast } from "sonner";
+import axios from "axios";
 
 interface ChatInterfaceProps {
   events: DetectionEvent[];
@@ -35,19 +36,25 @@ const ChatInterface = ({ events }: ChatInterfaceProps) => {
     setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setIsLoading(true);
 
-    // Simulate AI response
-    // In production, this would call http://localhost:8000/chat
-    setTimeout(() => {
-      const mockResponse = `Based on the surveillance data, I've analyzed ${events.length} detection events. The highest threat score is ${Math.max(
-        ...events.map((e) => e.threatScore)
-      )}. Would you like me to provide more details about specific events?`;
+    try {
+      const response = await axios.post<{ reply: string }>(
+        "http://localhost:8000/chat",
+        {
+          query: userMessage,
+          logs: events,
+        }
+      );
 
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: mockResponse },
+        { role: "assistant", content: response.data.reply },
       ]);
+    } catch (error) {
+      console.error("Chat error:", error);
+      toast.error("Failed to get AI response. Make sure the backend is running.");
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   return (
