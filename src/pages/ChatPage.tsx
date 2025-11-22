@@ -39,57 +39,27 @@ const ChatPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <div className="fixed top-4 left-4 z-50">
-        <Link to="/">
-          <Button variant="outline" size="sm" className="font-display">
-            <Home className="w-4 h-4 mr-2" />
-            HOME
-          </Button>
-        </Link>
-      </div>
-
-      <div className="fixed top-4 right-4 z-50">
-        <Link to="/analyze">
-          <Button variant="outline" size="sm" className="font-display">
-            ANALYZE
-          </Button>
-        </Link>
-      </div>
-
-      {/* Main Content */}
-      <div className="container mx-auto px-4 py-16">
-        <header className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-3">
-            <MessageSquare className="w-10 h-10 text-primary" />
-            <h1 className="font-display text-4xl font-bold">
-              AI INTELLIGENCE CONSOLE
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-4xl font-display font-bold text-primary text-glow-primary mb-2">
+              AI ASSISTANT
             </h1>
+            <p className="text-muted-foreground">Discuss surveillance events and analysis with AI</p>
           </div>
-          <p className="text-muted-foreground font-mono">
-            Query surveillance data with natural language
-          </p>
-        </header>
+          <Link to="/">
+            <Button variant="outline" size="sm" className="font-display">
+              <Home className="w-4 h-4 mr-2" />
+              HOME
+            </Button>
+          </Link>
+        </div>
 
-        <Card className="bg-card border-border max-w-5xl mx-auto p-6">
-          <div className="mb-4 p-4 bg-secondary/30 border border-border rounded-lg">
-            <p className="text-xs font-mono text-muted-foreground mb-2">
-              DEMO MODE: Using placeholder event data
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Navigate to <Link to="/analyze" className="text-primary hover:underline">Analyze</Link> to 
-              process actual surveillance footage and interact with real detection events.
-            </p>
-          </div>
-          
-          <ChatInterface events={demoEvents} />
-        </Card>
-
-        <div className="text-center mt-8">
-          <p className="text-sm text-muted-foreground font-mono">
-            Ask questions like: "Show me high-threat events" or "Analyze behavior patterns"
-          </p>
+        {/* Chat Interface */}
+        <div className="h-[calc(100vh-200px)]">
+          <ChatInterface events={[]} />
         </div>
       </div>
     </div>
