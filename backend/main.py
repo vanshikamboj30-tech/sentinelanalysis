@@ -38,6 +38,13 @@ class FrameRequest(BaseModel):
     frame: str  # base64 encoded image
 
 
+class AlertRequest(BaseModel):
+    events: list
+    videoUrl: str
+    email: str = None
+    phone: str = None
+
+
 @app.get("/health")
 async def health_check():
     """Return system CPU and RAM usage"""
@@ -102,6 +109,42 @@ async def process_frame(request: FrameRequest):
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Frame processing failed: {str(e)}")
+
+
+@app.post("/send-alert")
+async def send_alert(request: AlertRequest):
+    """
+    Send email/SMS notifications for high-threat events
+    """
+    try:
+        # Generate alert summary
+        alert_summary = f"""
+SENTINEL AI - HIGH THREAT ALERT
+
+{len(request.events)} high-threat events detected in surveillance footage.
+
+Top Events:
+"""
+        for i, event in enumerate(request.events[:5], 1):
+            alert_summary += f"{i}. [{event['timestamp']}] {event['class'].upper()} - Threat: {event['threatScore']}%\n"
+        
+        alert_summary += f"\nVideo URL: {request.videoUrl}\n"
+        alert_summary += f"Alert generated at: {psutil.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        
+        # TODO: Integrate with email service (e.g., SendGrid, AWS SES)
+        # TODO: Integrate with SMS service (e.g., Twilio)
+        
+        print("ALERT NOTIFICATION:")
+        print(alert_summary)
+        
+        return JSONResponse({
+            "success": True,
+            "message": f"Alert prepared for {len(request.events)} events",
+            "summary": alert_summary
+        })
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Alert failed: {str(e)}")
 
 
 @app.post("/chat")
