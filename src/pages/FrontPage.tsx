@@ -71,7 +71,7 @@ const FrontPage = () => {
             <div className="flex flex-wrap justify-center gap-4">
               <Link to="/analyze">
                 <Button size="lg" className="font-display text-lg px-8 glow-primary group">
-                  INITIATE ANALYSIS
+                  VIDEO ANALYSIS
                   <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
@@ -83,6 +83,11 @@ const FrontPage = () => {
               <Link to="/analytics">
                 <Button size="lg" variant="outline" className="font-display text-lg px-8">
                   ANALYTICS
+                </Button>
+              </Link>
+              <Link to="/chat">
+                <Button size="lg" variant="outline" className="font-display text-lg px-8">
+                  AI ASSISTANT
                 </Button>
               </Link>
             </div>

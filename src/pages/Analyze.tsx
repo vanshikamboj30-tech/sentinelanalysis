@@ -48,23 +48,30 @@ const Analyze = () => {
   };
 
   return (
-    <main className="min-h-screen bg-background">
-      {/* Navigation */}
-      <div className="fixed top-4 left-4 z-50">
-        <Link to="/">
-          <Button variant="outline" size="sm" className="font-display">
-            <Home className="w-4 h-4 mr-2" />
-            HOME
-          </Button>
-        </Link>
-      </div>
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-4xl font-display font-bold text-primary text-glow-primary mb-2">
+              VIDEO ANALYSIS
+            </h1>
+            <p className="text-muted-foreground">Upload and analyze surveillance footage</p>
+          </div>
+          <Link to="/">
+            <Button variant="outline" size="sm" className="font-display">
+              <Home className="w-4 h-4 mr-2" />
+              HOME
+            </Button>
+          </Link>
+        </div>
 
-      {currentView === "upload" && <UploadView onUpload={handleVideoUpload} />}
-      {currentView === "processing" && <ProcessingView />}
-      {currentView === "dashboard" && analysisData && (
-        <DashboardView data={analysisData} onReset={handleReset} />
-      )}
-    </main>
+        {currentView === "upload" && <UploadView onUpload={handleVideoUpload} />}
+        {currentView === "processing" && <ProcessingView />}
+        {currentView === "dashboard" && analysisData && (
+          <DashboardView data={analysisData} onReset={handleReset} />
+        )}
+      </div>
+    </div>
   );
 };
 

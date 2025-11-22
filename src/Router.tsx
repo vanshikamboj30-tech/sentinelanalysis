@@ -23,9 +23,9 @@ const Router = () => (
           <Route path="/" element={<FrontPage />} />
           <Route path="/features" element={<Features />} />
           <Route path="/analyze" element={<Analyze />} />
-          <Route path="/chat" element={<ChatPage />} />
           <Route path="/live" element={<LiveFeed />} />
           <Route path="/analytics" element={<Analytics />} />
+          <Route path="/chat" element={<ChatPage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
