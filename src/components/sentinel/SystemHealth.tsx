@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Cpu, HardDrive } from "lucide-react";
 import { SystemHealth as SystemHealthType } from "@/types/sentinel";
+import axios from "axios";
 
 const SystemHealth = () => {
   const [health, setHealth] = useState<SystemHealthType>({
@@ -10,14 +11,19 @@ const SystemHealth = () => {
   });
 
   useEffect(() => {
-    // Simulate system health updates
-    // In production, this would call http://localhost:8000/health
-    const interval = setInterval(() => {
-      setHealth({
-        cpu: Math.floor(Math.random() * 30) + 40,
-        ram: Math.floor(Math.random() * 20) + 55,
-      });
-    }, 3000);
+    const fetchHealth = async () => {
+      try {
+        const response = await axios.get<SystemHealthType>(
+          "http://localhost:8000/health"
+        );
+        setHealth(response.data);
+      } catch (error) {
+        console.error("Health check failed:", error);
+      }
+    };
+
+    fetchHealth();
+    const interval = setInterval(fetchHealth, 3000);
 
     return () => clearInterval(interval);
   }, []);
