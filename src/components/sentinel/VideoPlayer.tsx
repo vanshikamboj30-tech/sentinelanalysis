@@ -27,6 +27,10 @@ const VideoPlayer = ({ videoUrl }: VideoPlayerProps) => {
           className="w-full h-full object-contain"
           autoPlay
           loop
+          crossOrigin="anonymous"
+          onError={(e) => {
+            console.error("Video error:", e);
+          }}
         />
         {/* Scanning effect overlay */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">

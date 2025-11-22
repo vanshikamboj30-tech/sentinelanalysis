@@ -5,10 +5,13 @@ import DashboardView from "@/components/sentinel/DashboardView";
 import { VideoAnalysis } from "@/types/sentinel";
 import axios from "axios";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Home } from "lucide-react";
 
 type View = "upload" | "processing" | "dashboard";
 
-const Index = () => {
+const App = () => {
   const [currentView, setCurrentView] = useState<View>("upload");
   const [analysisData, setAnalysisData] = useState<VideoAnalysis | null>(null);
 
@@ -46,6 +49,18 @@ const Index = () => {
 
   return (
     <main className="min-h-screen bg-background">
+      {/* Home button for navigation */}
+      {currentView !== "upload" && (
+        <div className="fixed top-4 left-4 z-50">
+          <Link to="/">
+            <Button variant="outline" size="sm" className="font-display">
+              <Home className="w-4 h-4 mr-2" />
+              HOME
+            </Button>
+          </Link>
+        </div>
+      )}
+
       {currentView === "upload" && <UploadView onUpload={handleVideoUpload} />}
       {currentView === "processing" && <ProcessingView />}
       {currentView === "dashboard" && analysisData && (
@@ -55,4 +70,4 @@ const Index = () => {
   );
 };
 
-export default Index;
+export default App;
