@@ -1,7 +1,7 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
 from pydantic import BaseModel
 import uvicorn
 import psutil
@@ -10,7 +10,8 @@ import base64
 import numpy as np
 import cv2
 from pathlib import Path
-from logic import process_video_logic, run_gemini_chat, process_frame_logic
+from logic import process_video_logic, run_gemini_chat, process_frame_logic, process_annotated_frame_logic
+import time
 
 app = FastAPI(title="Sentinel AI Backend")
 
@@ -36,6 +37,11 @@ class ChatRequest(BaseModel):
 
 class FrameRequest(BaseModel):
     frame: str  # base64 encoded image
+
+
+class AnnotatedFrameRequest(BaseModel):
+    frame: str  # base64 encoded image
+    detections: list
 
 
 class AlertRequest(BaseModel):
@@ -159,6 +165,33 @@ async def chat_with_ai(request: ChatRequest):
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
+
+
+@app.post("/annotate-frame")
+async def annotate_frame(request: AnnotatedFrameRequest):
+    """
+    Process frame with detections and return annotated image
+    """
+    try:
+        # Decode base64 image
+        img_data = base64.b64decode(request.frame.split(',')[1] if ',' in request.frame else request.frame)
+        nparr = np.frombuffer(img_data, np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        if frame is None:
+            raise HTTPException(status_code=400, detail="Invalid image data")
+        
+        # Annotate frame with detections
+        annotated_frame = process_annotated_frame_logic(frame, request.detections)
+        
+        # Encode back to base64
+        _, buffer = cv2.imencode('.jpg', annotated_frame)
+        annotated_b64 = base64.b64encode(buffer).decode('utf-8')
+        
+        return JSONResponse({"annotated_frame": f"data:image/jpeg;base64,{annotated_b64}"})
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Annotation failed: {str(e)}")
 
 
 if __name__ == "__main__":
