@@ -6,8 +6,11 @@ from pydantic import BaseModel
 import uvicorn
 import psutil
 import os
+import base64
+import numpy as np
+import cv2
 from pathlib import Path
-from logic import process_video_logic, run_gemini_chat
+from logic import process_video_logic, run_gemini_chat, process_frame_logic
 
 app = FastAPI(title="Sentinel AI Backend")
 
@@ -29,6 +32,10 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 class ChatRequest(BaseModel):
     query: str
     logs: list
+
+
+class FrameRequest(BaseModel):
+    frame: str  # base64 encoded image
 
 
 @app.get("/health")
@@ -72,6 +79,29 @@ async def analyze_video(file: UploadFile = File(...)):
         if os.path.exists(temp_input_path):
             os.remove(temp_input_path)
         raise HTTPException(status_code=500, detail=f"Video processing failed: {str(e)}")
+
+
+@app.post("/process-frame")
+async def process_frame(request: FrameRequest):
+    """
+    Process a single frame from webcam stream
+    Returns detections with threat scores
+    """
+    try:
+        # Decode base64 image
+        img_data = base64.b64decode(request.frame.split(',')[1] if ',' in request.frame else request.frame)
+        nparr = np.frombuffer(img_data, np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        if frame is None:
+            raise HTTPException(status_code=400, detail="Invalid image data")
+        
+        # Process frame and get detections
+        detections = process_frame_logic(frame)
+        return JSONResponse({"detections": detections})
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Frame processing failed: {str(e)}")
 
 
 @app.post("/chat")

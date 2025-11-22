@@ -6,6 +6,7 @@ import supervision as sv
 import google.generativeai as genai
 import os
 import json
+from datetime import datetime
 
 # Initialize YOLO model
 model = YOLO("yolov8n.pt")
@@ -217,3 +218,40 @@ Based on the log data and the video, provide the most relevant and precise answe
     
     except Exception as e:
         return f"Error communicating with AI: {str(e)}"
+
+
+def process_frame_logic(frame):
+    """
+    Process a single frame and return detections with threat scores
+    """
+    target_classes = ["person", "car", "bicycle", "motorcycle", "bus", "truck"]
+    
+    # Run YOLO detection on frame
+    results = model(frame, verbose=False)[0]
+    detections = sv.Detections.from_ultralytics(results)
+    
+    detection_list = []
+    frame_shape = frame.shape
+    
+    if len(detections) > 0:
+        # Filter to target classes
+        class_names = [model.names[class_id] for class_id in detections.class_id]
+        mask = [name in target_classes for name in class_names]
+        detections = detections[mask]
+        
+        for bbox, class_id, confidence in zip(detections.xyxy, detections.class_id, detections.confidence):
+            class_name = model.names[class_id]
+            
+            # Calculate threat score
+            threat_score = calculate_threat_score(bbox, frame_shape, {}, confidence)
+            
+            detection = {
+                "time": datetime.now().strftime("%H:%M:%S"),
+                "class": class_name,
+                "confidence": round(float(confidence) * 100, 1),
+                "threat": int(threat_score)
+            }
+            
+            detection_list.append(detection)
+    
+    return detection_list

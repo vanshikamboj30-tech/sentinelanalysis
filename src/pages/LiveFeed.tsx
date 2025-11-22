@@ -2,15 +2,20 @@ import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Home, Video, VideoOff, AlertTriangle } from "lucide-react";
+import { Home, Video, VideoOff, AlertTriangle, FileText, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { useAlertNotifications } from "@/hooks/useAlertNotifications";
+import ChatInterface from "@/components/sentinel/ChatInterface";
+import axios from "axios";
 
 const LiveFeed = () => {
   const [isStreaming, setIsStreaming] = useState(false);
-  const [detections, setDetections] = useState<Array<{ time: string; class: string; threat: number }>>([]);
+  const [detections, setDetections] = useState<Array<{ time: string; class: string; threat: number; confidence?: number }>>([]);
+  const [showChat, setShowChat] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const { requestPermission, sendAlert } = useAlertNotifications();
 
   useEffect(() => {
@@ -19,6 +24,44 @@ const LiveFeed = () => {
       stopStream();
     };
   }, []);
+
+  const processFrame = async () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    const ctx = canvas.getContext("2d");
+
+    if (!ctx) return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+
+    const frameData = canvas.toDataURL("image/jpeg", 0.8);
+
+    try {
+      const response = await axios.post("http://localhost:8000/process-frame", {
+        frame: frameData,
+      });
+
+      if (response.data.detections && response.data.detections.length > 0) {
+        const newDetections = response.data.detections;
+        setDetections((prev) => [...newDetections, ...prev].slice(0, 20));
+
+        newDetections.forEach((det: any) => {
+          if (det.threat > 70) {
+            sendAlert(
+              `High threat detected: ${det.class} (${det.threat})`,
+              "danger"
+            );
+          }
+        });
+      }
+    } catch (error) {
+      console.error("Error processing frame:", error);
+    }
+  };
 
   const startStream = async () => {
     try {
@@ -31,28 +74,10 @@ const LiveFeed = () => {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
         setIsStreaming(true);
-        toast.success("Live feed started");
-        
-        // Simulate periodic detections for demonstration
-        const interval = setInterval(() => {
-          const classes = ["person", "car", "bicycle"];
-          const randomClass = classes[Math.floor(Math.random() * classes.length)];
-          const threatScore = Math.floor(Math.random() * 100);
-          
-          const detection = {
-            time: new Date().toLocaleTimeString(),
-            class: randomClass,
-            threat: threatScore,
-          };
-          
-          setDetections(prev => [detection, ...prev].slice(0, 10));
-          
-          if (threatScore > 70) {
-            sendAlert(`High threat detected: ${randomClass} (${threatScore})`, "danger");
-          }
-        }, 5000);
+        toast.success("Live feed started - Real YOLOv8 detection active");
 
-        return () => clearInterval(interval);
+        // Process frames every 2 seconds for real-time detection
+        intervalRef.current = setInterval(processFrame, 2000);
       }
     } catch (error) {
       console.error("Error accessing camera:", error);
@@ -61,8 +86,12 @@ const LiveFeed = () => {
   };
 
   const stopStream = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
     if (videoRef.current) {
@@ -70,6 +99,48 @@ const LiveFeed = () => {
     }
     setIsStreaming(false);
     toast.info("Live feed stopped");
+  };
+
+  const generateReport = () => {
+    if (detections.length === 0) {
+      toast.error("No detections to report");
+      return;
+    }
+
+    const reportContent = `
+SURVEILLANCE REPORT
+Generated: ${new Date().toLocaleString()}
+===========================================
+
+SUMMARY:
+- Total Detections: ${detections.length}
+- High Threat Events: ${detections.filter((d) => d.threat > 70).length}
+- Medium Threat Events: ${detections.filter((d) => d.threat > 40 && d.threat <= 70).length}
+- Low Threat Events: ${detections.filter((d) => d.threat <= 40).length}
+
+DETECTION LOG:
+${detections
+  .map(
+    (d, i) =>
+      `${i + 1}. [${d.time}] ${d.class.toUpperCase()} - Threat: ${d.threat}% ${d.confidence ? `(Confidence: ${d.confidence}%)` : ""}`
+  )
+  .join("\n")}
+
+===========================================
+Report generated by SENTINEL AI System
+    `.trim();
+
+    const blob = new Blob([reportContent], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `surveillance-report-${Date.now()}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast.success("Report downloaded");
   };
 
   return (
@@ -94,6 +165,7 @@ const LiveFeed = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Video Feed */}
           <Card className="lg:col-span-2 p-6 bg-card border-border">
+            <canvas ref={canvasRef} className="hidden" />
             <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
               <video
                 ref={videoRef}
@@ -129,16 +201,50 @@ const LiveFeed = () => {
                   START FEED
                 </Button>
               ) : (
-                <Button onClick={stopStream} variant="destructive" className="flex-1 font-display">
+                <Button
+                  onClick={stopStream}
+                  variant="destructive"
+                  className="flex-1 font-display"
+                >
                   <VideoOff className="w-4 h-4 mr-2" />
                   STOP FEED
                 </Button>
               )}
+              <Button
+                onClick={generateReport}
+                variant="outline"
+                className="font-display"
+                disabled={detections.length === 0}
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                REPORT
+              </Button>
+              <Button
+                onClick={() => setShowChat(!showChat)}
+                variant="outline"
+                className="font-display"
+              >
+                <MessageSquare className="w-4 h-4 mr-2" />
+                {showChat ? "HIDE" : "CHAT"}
+              </Button>
             </div>
           </Card>
 
-          {/* Detections Log */}
-          <Card className="p-6 bg-card border-border">
+          {/* Detections Log or Chat */}
+          {showChat ? (
+            <div className="h-[600px]">
+              <ChatInterface
+                events={detections.map((d, i) => ({
+                  id: i,
+                  timestamp: d.time,
+                  class: d.class,
+                  confidence: d.confidence || 0,
+                  threatScore: d.threat,
+                }))}
+              />
+            </div>
+          ) : (
+            <Card className="p-6 bg-card border-border">
             <h2 className="text-xl font-display font-bold text-primary mb-4 flex items-center gap-2">
               <AlertTriangle className="w-5 h-5" />
               LIVE DETECTIONS
@@ -160,28 +266,47 @@ const LiveFeed = () => {
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="font-display text-sm uppercase">{detection.class}</span>
-                      <span className="text-xs text-muted-foreground font-mono">{detection.time}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Threat Level</span>
-                      <span
-                        className={`text-sm font-display font-bold ${
-                          detection.threat > 70
-                            ? "text-destructive"
-                            : detection.threat > 40
-                            ? "text-warning"
-                            : "text-success"
-                        }`}
-                      >
-                        {detection.threat}
+                      <span className="font-display text-sm uppercase">
+                        {detection.class}
                       </span>
+                      <span className="text-xs text-muted-foreground font-mono">
+                        {detection.time}
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">
+                          Threat Level
+                        </span>
+                        <span
+                          className={`text-sm font-display font-bold ${
+                            detection.threat > 70
+                              ? "text-destructive"
+                              : detection.threat > 40
+                              ? "text-warning"
+                              : "text-success"
+                          }`}
+                        >
+                          {detection.threat}%
+                        </span>
+                      </div>
+                      {detection.confidence && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">
+                            Confidence
+                          </span>
+                          <span className="text-xs font-mono">
+                            {detection.confidence}%
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))
               )}
             </div>
-          </Card>
+            </Card>
+          )}
         </div>
       </div>
     </div>
