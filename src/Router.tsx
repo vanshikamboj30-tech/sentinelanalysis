@@ -7,6 +7,8 @@ import FrontPage from "./pages/FrontPage";
 import Features from "./pages/Features";
 import Analyze from "./pages/Analyze";
 import ChatPage from "./pages/ChatPage";
+import LiveFeed from "./pages/LiveFeed";
+import Analytics from "./pages/Analytics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +24,8 @@ const Router = () => (
           <Route path="/features" element={<Features />} />
           <Route path="/analyze" element={<Analyze />} />
           <Route path="/chat" element={<ChatPage />} />
+          <Route path="/live" element={<LiveFeed />} />
+          <Route path="/analytics" element={<Analytics />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

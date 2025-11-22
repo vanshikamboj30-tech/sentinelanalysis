@@ -68,12 +68,24 @@ const FrontPage = () => {
               Upload surveillance footage for comprehensive threat detection, behavioral tracking, 
               and AI-powered intelligence assessment
             </p>
-            <Link to="/analyze">
-              <Button size="lg" className="font-display text-lg px-8 glow-primary group">
-                INITIATE ANALYSIS
-                <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </Link>
+            <div className="flex flex-wrap justify-center gap-4">
+              <Link to="/analyze">
+                <Button size="lg" className="font-display text-lg px-8 glow-primary group">
+                  INITIATE ANALYSIS
+                  <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+              <Link to="/live">
+                <Button size="lg" variant="outline" className="font-display text-lg px-8">
+                  LIVE FEED
+                </Button>
+              </Link>
+              <Link to="/analytics">
+                <Button size="lg" variant="outline" className="font-display text-lg px-8">
+                  ANALYTICS
+                </Button>
+              </Link>
+            </div>
           </Card>
         </div>
 
