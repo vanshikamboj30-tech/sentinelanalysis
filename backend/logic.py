@@ -255,3 +255,34 @@ def process_frame_logic(frame):
             detection_list.append(detection)
     
     return detection_list
+
+
+def process_annotated_frame_logic(frame, detections):
+    """
+    Annotate frame with detection boxes and labels
+    """
+    annotated_frame = frame.copy()
+    
+    for detection in detections:
+        # Get threat level color
+        threat = detection.get("threat", 0)
+        if threat > 70:
+            color = (0, 0, 255)  # Red
+        elif threat > 40:
+            color = (0, 165, 255)  # Orange
+        else:
+            color = (0, 255, 0)  # Green
+        
+        # Draw bounding box (simplified - using center as reference)
+        h, w = frame.shape[:2]
+        box_size = 100
+        cx, cy = w // 2, h // 2
+        cv2.rectangle(annotated_frame, (cx - box_size, cy - box_size), 
+                     (cx + box_size, cy + box_size), color, 2)
+        
+        # Add label
+        label = f"{detection['class']} {detection['threat']}%"
+        cv2.putText(annotated_frame, label, (cx - box_size, cy - box_size - 10),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+    
+    return annotated_frame
