@@ -11,7 +11,7 @@ import { Home } from "lucide-react";
 
 type View = "upload" | "processing" | "dashboard";
 
-const App = () => {
+const Analyze = () => {
   const [currentView, setCurrentView] = useState<View>("upload");
   const [analysisData, setAnalysisData] = useState<VideoAnalysis | null>(null);
 
@@ -49,17 +49,15 @@ const App = () => {
 
   return (
     <main className="min-h-screen bg-background">
-      {/* Home button for navigation */}
-      {currentView !== "upload" && (
-        <div className="fixed top-4 left-4 z-50">
-          <Link to="/">
-            <Button variant="outline" size="sm" className="font-display">
-              <Home className="w-4 h-4 mr-2" />
-              HOME
-            </Button>
-          </Link>
-        </div>
-      )}
+      {/* Navigation */}
+      <div className="fixed top-4 left-4 z-50">
+        <Link to="/">
+          <Button variant="outline" size="sm" className="font-display">
+            <Home className="w-4 h-4 mr-2" />
+            HOME
+          </Button>
+        </Link>
+      </div>
 
       {currentView === "upload" && <UploadView onUpload={handleVideoUpload} />}
       {currentView === "processing" && <ProcessingView />}
@@ -70,4 +68,4 @@ const App = () => {
   );
 };
 
-export default App;
+export default Analyze;

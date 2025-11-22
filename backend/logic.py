@@ -170,29 +170,49 @@ def process_video_logic(input_video_path: str):
 
 def run_gemini_chat(user_query: str, event_logs: list):
     """
-    Use Gemini API to analyze surveillance data and respond to user query
+    Use Gemini API to analyze surveillance data and respond to user query.
+    Implements Phase 2 constraints for professional, analytical responses.
     """
     if not GEMINI_API_KEY:
         return "Error: GEMINI_API_KEY is not configured. Please set the environment variable."
     
     try:
-        model = genai.GenerativeModel("gemini-2.0-flash-exp")
+        model = genai.GenerativeModel("gemini-pro")
         
-        # Prepare context with event logs
-        context = f"""You are Sentinel AI, a surveillance analysis assistant.
-You have access to the following detection event logs:
+        # Phase 2: Embed complete system instructions
+        log_data = json.dumps(event_logs, indent=2)
+        
+        system_role = f"""**System Role:**
+You are **Sentinel AI**, a hyper-specialized, autonomous surveillance analyst. Your mission is to provide concise, factual, and professional analysis based *only* on the provided raw surveillance logs and the visual evidence in the video footage. Your tone must be that of a military-grade intelligence system: analytical, brief, and objective.
 
-{json.dumps(event_logs, indent=2)}
+**Data Context:**
+The user has provided a video file and the following CSV/JSON logs derived from the frame-by-frame analysis.
+LOG DATA:
+---
+{log_data}
+---
 
-Threat Score Guide:
+**Core Guidelines:**
+1. **Cross-Reference:** Always attempt to cross-reference the data logs (e.g., Threat Score, AOI breach, Time) with visual details in the video evidence when answering the user's query.
+2. **Mission Briefing:** If the user asks for a 'Summary' or 'Mission Briefing', compile the top 3 critical events (highest Threat Score, first AOI breach, statistical outliers) and their associated timestamps.
+3. **Behavioral Hypothesis:** When asked to 'analyze behavior', classify the movement as **Transient**, **Loitering**, or **Evasive**, and provide a one-sentence justification.
+4. **Time-Slice Analysis:** If a time range is specified (e.g., '10s to 20s'), filter the log data exclusively to that window before answering.
+5. **Data Absence Policy:** If the answer is not present in the logs or video, state: **'Information not available in current mission logs.'**
+6. **Formatting:** Report all numerical metrics (Speed, Time, Threat Score) with a maximum of **one decimal place**.
+
+**Threat Score Reference:**
 - 70-100: High Threat (requires immediate attention)
-- 40-69: Medium Threat (monitor closely)
+- 40-69: Medium Threat (monitor closely)  
 - 0-39: Low Threat (routine detection)
 
-Respond concisely and professionally to the user's query about the surveillance data."""
+**User Query:**
+{user_query}
+
+**Analysis Request:**
+Based on the log data and the video, provide the most relevant and precise answer to the user's query."""
         
-        # Generate response
-        response = model.generate_content([context, user_query])
+        # Generate response with embedded instructions
+        response = model.generate_content(system_role)
         return response.text
     
     except Exception as e:
