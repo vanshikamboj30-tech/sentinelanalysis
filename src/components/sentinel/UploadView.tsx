@@ -1,7 +1,8 @@
 import { useState, useCallback } from "react";
-import { Upload, Video } from "lucide-react";
+import { Upload, Video, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 
 interface UploadViewProps {
   onUpload: (file: File) => void;
@@ -50,6 +51,16 @@ const UploadView = ({ onUpload }: UploadViewProps) => {
 
   return (
     <div className="flex items-center justify-center min-h-screen p-8">
+      {/* Home Navigation */}
+      <div className="fixed top-4 left-4 z-50">
+        <Link to="/">
+          <Button variant="outline" size="sm" className="font-display">
+            <Home className="w-4 h-4 mr-2" />
+            HOME
+          </Button>
+        </Link>
+      </div>
+
       <div className="w-full max-w-4xl space-y-8">
         {/* Header */}
         <div className="text-center space-y-4">
