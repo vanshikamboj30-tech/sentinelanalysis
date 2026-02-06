@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
 from pydantic import BaseModel
+from typing import Optional, List
 import uvicorn
 import psutil
 import os
@@ -10,15 +11,25 @@ import base64
 import numpy as np
 import cv2
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables first
+load_dotenv()
+
 from logic import process_video_logic, run_gemini_chat, process_frame_logic, process_annotated_frame_logic
-import time
+from database import (
+    save_video_analysis, save_alert, save_detection_event,
+    get_recent_analyses, get_analytics_summary, get_threat_distribution,
+    get_recent_alerts
+)
+from email_service import send_alert_email, send_analysis_report, is_email_configured
 
 app = FastAPI(title="Sentinel AI Backend")
 
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://localhost:8080", "*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -47,8 +58,9 @@ class AnnotatedFrameRequest(BaseModel):
 class AlertRequest(BaseModel):
     events: list
     videoUrl: str
-    email: str = None
-    phone: str = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    sendEmail: Optional[bool] = True
 
 
 @app.get("/health")
@@ -60,6 +72,16 @@ async def health_check():
     return JSONResponse({
         "cpu": int(cpu_percent),
         "ram": int(ram_percent)
+    })
+
+
+@app.get("/status")
+async def system_status():
+    """Return system configuration status"""
+    return JSONResponse({
+        "database": True,  # MongoDB configured
+        "email": is_email_configured(),
+        "gemini": bool(os.getenv("GEMINI_API_KEY"))
     })
 
 
@@ -81,6 +103,28 @@ async def analyze_video(file: UploadFile = File(...)):
     try:
         # Process video and get results
         result = process_video_logic(temp_input_path)
+        
+        # Save analysis to database
+        analysis_id = save_video_analysis(
+            video_filename=file.filename,
+            video_url=result["videoUrl"],
+            events=result["events"],
+            stats=result["stats"]
+        )
+        
+        # Send email report
+        if is_email_configured():
+            email_sent = send_analysis_report(
+                video_filename=file.filename,
+                video_url=result["videoUrl"],
+                events=result["events"],
+                stats=result["stats"]
+            )
+            result["emailSent"] = email_sent
+        else:
+            result["emailSent"] = False
+        
+        result["analysisId"] = analysis_id
         
         # Clean up temporary input file
         os.remove(temp_input_path)
@@ -111,6 +155,20 @@ async def process_frame(request: FrameRequest):
         
         # Process frame and get detections
         detections = process_frame_logic(frame)
+        
+        # Save high-threat detections to database
+        for detection in detections:
+            if detection.get("threat", 0) >= 70:
+                save_detection_event(
+                    source="live",
+                    event_data={
+                        "timestamp": detection.get("time"),
+                        "class": detection.get("class"),
+                        "confidence": detection.get("confidence"),
+                        "threatScore": detection.get("threat")
+                    }
+                )
+        
         return JSONResponse({"detections": detections})
     
     except Exception as e:
@@ -123,6 +181,25 @@ async def send_alert(request: AlertRequest):
     Send email/SMS notifications for high-threat events
     """
     try:
+        # Save alert to database
+        alert_id = save_alert(
+            events=request.events,
+            video_url=request.videoUrl,
+            email=request.email,
+            phone=request.phone,
+            status="pending"
+        )
+        
+        email_sent = False
+        
+        # Send email if configured and requested
+        if request.sendEmail and is_email_configured():
+            email_sent = send_alert_email(
+                events=request.events,
+                video_url=request.videoUrl,
+                to_email=request.email
+            )
+        
         # Generate alert summary
         alert_summary = f"""
 SENTINEL AI - HIGH THREAT ALERT
@@ -134,18 +211,13 @@ Top Events:
         for i, event in enumerate(request.events[:5], 1):
             alert_summary += f"{i}. [{event['timestamp']}] {event['class'].upper()} - Threat: {event['threatScore']}%\n"
         
-        alert_summary += f"\nVideo URL: {request.videoUrl}\n"
-        alert_summary += f"Alert generated at: {psutil.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        
-        # TODO: Integrate with email service (e.g., SendGrid, AWS SES)
-        # TODO: Integrate with SMS service (e.g., Twilio)
-        
-        print("ALERT NOTIFICATION:")
-        print(alert_summary)
+        alert_summary += f"\nVideo URL: {request.videoUrl}"
         
         return JSONResponse({
             "success": True,
-            "message": f"Alert prepared for {len(request.events)} events",
+            "alertId": alert_id,
+            "emailSent": email_sent,
+            "message": f"Alert processed for {len(request.events)} events",
             "summary": alert_summary
         })
     
@@ -192,6 +264,38 @@ async def annotate_frame(request: AnnotatedFrameRequest):
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Annotation failed: {str(e)}")
+
+
+# ==================== NEW ANALYTICS ENDPOINTS ====================
+
+@app.get("/analytics/summary")
+async def get_analytics():
+    """Get overall analytics summary from database"""
+    try:
+        summary = get_analytics_summary()
+        distribution = get_threat_distribution()
+        
+        return JSONResponse({
+            "summary": summary,
+            "threatDistribution": distribution
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get analytics: {str(e)}")
+
+
+@app.get("/analytics/recent")
+async def get_recent():
+    """Get recent analyses and alerts"""
+    try:
+        analyses = get_recent_analyses(limit=10)
+        alerts = get_recent_alerts(limit=10)
+        
+        return JSONResponse({
+            "analyses": analyses,
+            "alerts": alerts
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get recent data: {str(e)}")
 
 
 if __name__ == "__main__":
