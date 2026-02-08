@@ -28,6 +28,15 @@ def is_email_configured() -> bool:
     return bool(SMTP_USER and SMTP_PASSWORD)
 
 
+def parse_email_recipients(email_string: str) -> List[str]:
+    """
+    Parse comma-separated email addresses into a list
+    """
+    if not email_string:
+        return []
+    return [email.strip() for email in email_string.split(",") if email.strip()]
+
+
 def send_email(
     to_email: str,
     subject: str,
@@ -36,11 +45,18 @@ def send_email(
     attachments: Optional[List[str]] = None
 ) -> bool:
     """
-    Send an email via SMTP
+    Send an email via SMTP to one or more recipients
+    to_email can be a single email or comma-separated list
     Returns: True if successful, False otherwise
     """
     if not is_email_configured():
         print("❌ Email not configured. Set SMTP_USER and SMTP_PASSWORD in .env")
+        return False
+    
+    # Parse recipients (supports comma-separated list)
+    recipients = parse_email_recipients(to_email)
+    if not recipients:
+        print("❌ No valid email recipients provided")
         return False
     
     try:
@@ -48,7 +64,7 @@ def send_email(
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
         msg["From"] = SMTP_USER
-        msg["To"] = to_email
+        msg["To"] = ", ".join(recipients)  # Display all recipients
         
         # Add text part
         if text_body:
@@ -73,13 +89,13 @@ def send_email(
                     )
                     msg.attach(part)
         
-        # Send email
+        # Send email to all recipients
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
             server.starttls()
             server.login(SMTP_USER, SMTP_PASSWORD)
-            server.sendmail(SMTP_USER, to_email, msg.as_string())
+            server.sendmail(SMTP_USER, recipients, msg.as_string())
         
-        print(f"✅ Email sent successfully to {to_email}")
+        print(f"✅ Email sent successfully to {', '.join(recipients)}")
         return True
     
     except smtplib.SMTPAuthenticationError:

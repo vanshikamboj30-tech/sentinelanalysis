@@ -178,19 +178,22 @@ const Settings = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm">
-                  Alert Email Recipient
+                  Alert Email Recipients
                 </Label>
                 <div className="flex gap-2">
                   <Mail className="w-5 h-5 text-muted-foreground mt-2" />
                   <Input
                     id="email"
-                    type="email"
+                    type="text"
                     value={settings.emailRecipient}
                     onChange={(e) => updateSettings({ emailRecipient: e.target.value })}
-                    placeholder="email@example.com"
+                    placeholder="email1@example.com, email2@example.com"
                     className="flex-1"
                   />
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Separate multiple emails with commas
+                </p>
               </div>
             </div>
           </Card>
