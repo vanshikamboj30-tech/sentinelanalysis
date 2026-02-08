@@ -31,7 +31,8 @@ def get_database():
         _client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
         # Test connection
         _client.admin.command('ping')
-        _db = _client.get_default_database() or _client["sentinel_db"]
+        default_db = _client.get_default_database()
+        _db = default_db if default_db is not None else _client["sentinel_db"]
         print(f"✅ Connected to MongoDB: {_db.name}")
         return _db
     except ConnectionFailure as e:
