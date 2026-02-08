@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Shield, Video, Brain, Activity, ArrowRight, Eye } from "lucide-react";
+import { Shield, Video, Brain, Activity, ArrowRight, Eye, Settings, FileText, BarChart3 } from "lucide-react";
 import SystemHealth from "@/components/sentinel/SystemHealth";
 
 const FrontPage = () => {
@@ -59,7 +59,7 @@ const FrontPage = () => {
 
         {/* Call to Action */}
         <div className="text-center mb-12">
-          <Card className="bg-card border-primary/50 p-12 max-w-3xl mx-auto glow-primary">
+          <Card className="bg-card border-primary/50 p-12 max-w-4xl mx-auto glow-primary">
             <Eye className="w-16 h-16 text-primary mx-auto mb-6 animate-pulse" />
             <h2 className="font-display text-3xl font-bold mb-4">
               Begin Mission Analysis
@@ -82,12 +82,29 @@ const FrontPage = () => {
               </Link>
               <Link to="/analytics">
                 <Button size="lg" variant="outline" className="font-display text-lg px-8">
+                  <BarChart3 className="w-5 h-5 mr-2" />
                   ANALYTICS
                 </Button>
               </Link>
               <Link to="/chat">
                 <Button size="lg" variant="outline" className="font-display text-lg px-8">
                   AI ASSISTANT
+                </Button>
+              </Link>
+            </div>
+            
+            {/* Secondary Navigation */}
+            <div className="flex flex-wrap justify-center gap-4 mt-6 pt-6 border-t border-border">
+              <Link to="/reports">
+                <Button variant="ghost" className="font-display">
+                  <FileText className="w-4 h-4 mr-2" />
+                  VIEW REPORTS
+                </Button>
+              </Link>
+              <Link to="/settings">
+                <Button variant="ghost" className="font-display">
+                  <Settings className="w-4 h-4 mr-2" />
+                  SETTINGS
                 </Button>
               </Link>
             </div>

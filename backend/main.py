@@ -20,7 +20,7 @@ from logic import process_video_logic, run_gemini_chat, process_frame_logic, pro
 from database import (
     save_video_analysis, save_alert, save_detection_event,
     get_recent_analyses, get_analytics_summary, get_threat_distribution,
-    get_recent_alerts
+    get_recent_alerts, get_video_analysis
 )
 from email_service import send_alert_email, send_analysis_report, is_email_configured
 
@@ -266,7 +266,7 @@ async def annotate_frame(request: AnnotatedFrameRequest):
         raise HTTPException(status_code=500, detail=f"Annotation failed: {str(e)}")
 
 
-# ==================== NEW ANALYTICS ENDPOINTS ====================
+# ==================== ANALYTICS & REPORTS ENDPOINTS ====================
 
 @app.get("/analytics/summary")
 async def get_analytics():
@@ -287,8 +287,8 @@ async def get_analytics():
 async def get_recent():
     """Get recent analyses and alerts"""
     try:
-        analyses = get_recent_analyses(limit=10)
-        alerts = get_recent_alerts(limit=10)
+        analyses = get_recent_analyses(limit=50)
+        alerts = get_recent_alerts(limit=20)
         
         return JSONResponse({
             "analyses": analyses,
@@ -296,6 +296,60 @@ async def get_recent():
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get recent data: {str(e)}")
+
+
+@app.get("/reports")
+async def list_reports(limit: int = 50):
+    """Get all analysis reports"""
+    try:
+        reports = get_recent_analyses(limit=limit)
+        return JSONResponse(reports)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get reports: {str(e)}")
+
+
+@app.get("/reports/{report_id}")
+async def get_report(report_id: str):
+    """Get a specific report by ID"""
+    try:
+        report = get_video_analysis(report_id)
+        if not report:
+            raise HTTPException(status_code=404, detail="Report not found")
+        return JSONResponse(report)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get report: {str(e)}")
+
+
+class ResendReportRequest(BaseModel):
+    email: Optional[str] = None
+
+
+@app.post("/reports/{report_id}/resend")
+async def resend_report(report_id: str, request: ResendReportRequest):
+    """Resend a report via email"""
+    try:
+        report = get_video_analysis(report_id)
+        if not report:
+            raise HTTPException(status_code=404, detail="Report not found")
+        
+        if not is_email_configured():
+            raise HTTPException(status_code=400, detail="Email not configured")
+        
+        email_sent = send_analysis_report(
+            video_filename=report.get("video_filename", "Unknown"),
+            video_url=report.get("video_url", ""),
+            events=report.get("events", []),
+            stats=report.get("stats", {})
+        )
+        
+        return JSONResponse({
+            "success": email_sent,
+            "message": "Report sent successfully" if email_sent else "Failed to send email"
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to resend report: {str(e)}")
 
 
 if __name__ == "__main__":
