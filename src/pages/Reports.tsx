@@ -25,7 +25,13 @@ const Reports = () => {
       setReports(data.analyses || []);
     } catch (error) {
       console.error("Failed to load reports:", error);
-      toast.error("Failed to load reports. Make sure the backend is running.");
+      // Check if this is a network error (likely localhost issue from cloud preview)
+      const isNetworkError = error instanceof Error && error.message.includes('Network Error');
+      if (isNetworkError && !window.location.hostname.includes('localhost')) {
+        toast.error("Cannot connect to backend. Run the frontend locally with 'npm run dev' to connect to your local backend.");
+      } else {
+        toast.error("Failed to load reports. Make sure the backend is running on http://localhost:8000");
+      }
     } finally {
       setLoading(false);
     }
