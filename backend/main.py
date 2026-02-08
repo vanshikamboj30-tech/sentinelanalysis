@@ -85,8 +85,12 @@ async def system_status():
     })
 
 
+class AnalyzeRequest(BaseModel):
+    email: Optional[str] = None
+
+
 @app.post("/analyze")
-async def analyze_video(file: UploadFile = File(...)):
+async def analyze_video(file: UploadFile = File(...), email: Optional[str] = None):
     """
     Accept video upload, process with YOLO and ByteTrack,
     return processed video URL and event logs
@@ -112,13 +116,14 @@ async def analyze_video(file: UploadFile = File(...)):
             stats=result["stats"]
         )
         
-        # Send email report
+        # Send email report to specified recipients
         if is_email_configured():
             email_sent = send_analysis_report(
                 video_filename=file.filename,
                 video_url=result["videoUrl"],
                 events=result["events"],
-                stats=result["stats"]
+                stats=result["stats"],
+                to_email=email  # Pass the email from request
             )
             result["emailSent"] = email_sent
         else:
@@ -339,7 +344,8 @@ async def resend_report(report_id: str, request: ResendReportRequest):
             video_filename=report.get("video_filename", "Unknown"),
             video_url=report.get("video_url", ""),
             events=report.get("events", []),
-            stats=report.get("stats", {})
+            stats=report.get("stats", {}),
+            to_email=request.email  # Use the email from request
         )
         
         return JSONResponse({
