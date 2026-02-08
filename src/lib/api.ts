@@ -1,7 +1,19 @@
 import axios from "axios";
 import { AnalysisReport, AnalyticsSummary, ThreatDistribution } from "@/types/sentinel";
 
-const API_BASE = "http://localhost:8000";
+// Backend API base URL - change this if using a tunnel like ngrok
+// For local development: http://localhost:8000
+// For production: use your deployed backend URL
+const getApiBase = () => {
+  // Check if running on Lovable preview (not localhost)
+  if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
+    // Return localStorage override if set, otherwise localhost (will fail with clear error)
+    return localStorage.getItem('SENTINEL_API_URL') || 'http://localhost:8000';
+  }
+  return 'http://localhost:8000';
+};
+
+const API_BASE = getApiBase();
 
 export const api = {
   // Health & Status

@@ -43,7 +43,15 @@ const Analyze = () => {
       toast.success("Video analysis complete!");
     } catch (error) {
       console.error("Analysis error:", error);
-      toast.error("Failed to analyze video. Make sure the backend is running on http://localhost:8000");
+      // Check if this is a network error (likely localhost issue from cloud preview)
+      const isNetworkError = error instanceof Error && error.message.includes('Network Error');
+      if (isNetworkError && !window.location.hostname.includes('localhost')) {
+        toast.error("Cannot connect to backend. Run the frontend locally with 'npm run dev' to connect to your local backend.", {
+          duration: 8000,
+        });
+      } else {
+        toast.error("Failed to analyze video. Make sure the backend is running on http://localhost:8000");
+      }
       setCurrentView("upload");
     }
   };
