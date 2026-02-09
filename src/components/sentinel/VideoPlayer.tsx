@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
-import { Video, Maximize2, Volume2 } from "lucide-react";
+import { Video, Maximize2, Volume2, AlertCircle } from "lucide-react";
 import { forwardRef, useState } from "react";
+import { resolveVideoUrl } from "@/lib/api";
 
 interface VideoPlayerProps {
   videoUrl: string;
@@ -11,6 +12,8 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
   ({ videoUrl, videoRef }, ref) => {
     const actualRef = videoRef || (ref as React.RefObject<HTMLVideoElement>);
     const [isHovered, setIsHovered] = useState(false);
+    const [hasError, setHasError] = useState(false);
+    const resolvedUrl = resolveVideoUrl(videoUrl);
 
     const handleFullscreen = () => {
       if (actualRef?.current) {
@@ -45,47 +48,49 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
               <Maximize2 className="w-4 h-4 text-muted-foreground hover:text-foreground" />
             </button>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              <span className="text-xs font-mono text-muted-foreground">READY</span>
+              <div className={`w-2 h-2 rounded-full ${hasError ? 'bg-destructive' : 'bg-primary'} animate-pulse`} />
+              <span className="text-xs font-mono text-muted-foreground">
+                {hasError ? 'ERROR' : 'READY'}
+              </span>
             </div>
           </div>
         </div>
 
         {/* Video Container */}
         <div className="aspect-video bg-black relative">
-          <video
-            ref={actualRef}
-            src={videoUrl}
-            className="w-full h-full object-contain"
-            crossOrigin="anonymous"
-            onError={(e) => {
-              console.error("Video error:", e);
-            }}
-          />
+          {hasError ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground">
+              <AlertCircle className="w-12 h-12 text-destructive/60" />
+              <p className="text-sm font-mono">Failed to load video</p>
+              <p className="text-xs text-muted-foreground/60 max-w-xs text-center">
+                Make sure the backend is running and accessible
+              </p>
+            </div>
+          ) : (
+            <video
+              ref={actualRef}
+              src={resolvedUrl}
+              className="w-full h-full object-contain"
+              controls
+              crossOrigin="anonymous"
+              onError={() => setHasError(true)}
+              onLoadedData={() => setHasError(false)}
+            />
+          )}
           
           {/* Scanning effect overlay */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            <div className="absolute inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-primary/60 to-transparent opacity-60 animate-scan" />
-          </div>
+          {!hasError && (
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+              <div className="absolute inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-primary/60 to-transparent opacity-60 animate-scan" />
+            </div>
+          )}
 
           {/* Corner brackets */}
           <div className="absolute inset-0 pointer-events-none">
-            {/* Top-left */}
             <div className="absolute top-3 left-3 w-8 h-8 border-l-2 border-t-2 border-primary/50" />
-            {/* Top-right */}
             <div className="absolute top-3 right-3 w-8 h-8 border-r-2 border-t-2 border-primary/50" />
-            {/* Bottom-left */}
             <div className="absolute bottom-3 left-3 w-8 h-8 border-l-2 border-b-2 border-primary/50" />
-            {/* Bottom-right */}
             <div className="absolute bottom-3 right-3 w-8 h-8 border-r-2 border-b-2 border-primary/50" />
-          </div>
-
-          {/* Hover overlay with controls hint */}
-          <div className={`absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
-            <div className="absolute bottom-4 left-4 flex items-center gap-2 text-white/80 text-xs font-mono">
-              <Volume2 className="w-3 h-3" />
-              <span>Use controls below for playback</span>
-            </div>
           </div>
         </div>
 

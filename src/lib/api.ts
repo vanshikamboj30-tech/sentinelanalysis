@@ -22,6 +22,15 @@ export const setApiBaseUrl = (url: string) => {
 
 export const getCurrentApiUrl = () => API_BASE;
 
+// Resolve video URLs that may be relative paths from the backend
+export const resolveVideoUrl = (url: string) => {
+  if (!url) return '';
+  // Already absolute URL
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:')) return url;
+  // Relative path — prepend API base
+  return `${API_BASE}${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
 export const api = {
   // Health & Status
   async getHealth() {
