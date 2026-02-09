@@ -6,14 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Home, Settings as SettingsIcon, Save, RotateCcw, Mail, Gauge, Clock, AlertTriangle, Video } from "lucide-react";
+import { Home, Settings as SettingsIcon, Save, RotateCcw, Mail, Gauge, Clock, AlertTriangle, Video, Globe } from "lucide-react";
 import { toast } from "sonner";
 import { useSentinelSettings } from "@/hooks/useSentinelSettings";
-import { api } from "@/lib/api";
+import { api, setApiBaseUrl, getCurrentApiUrl } from "@/lib/api";
 
 const Settings = () => {
   const { settings, updateSettings, resetSettings, isLoaded } = useSentinelSettings();
   const [systemStatus, setSystemStatus] = useState<{ database: boolean; email: boolean; gemini: boolean } | null>(null);
+  const [backendUrl, setBackendUrl] = useState(getCurrentApiUrl());
 
   useEffect(() => {
     api.getStatus()
@@ -79,6 +80,40 @@ const Settings = () => {
         )}
 
         <div className="grid gap-6">
+          {/* Backend Connection */}
+          <Card className="p-6 bg-card border-border">
+            <div className="flex items-center gap-3 mb-6">
+              <Globe className="w-6 h-6 text-primary" />
+              <h2 className="text-xl font-display font-bold">Backend Connection</h2>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="backendUrl" className="text-sm">Backend API URL</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="backendUrl"
+                    value={backendUrl}
+                    onChange={(e) => setBackendUrl(e.target.value)}
+                    placeholder="http://localhost:8000"
+                    className="flex-1 font-mono text-sm"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setApiBaseUrl(backendUrl);
+                      toast.success("Backend URL updated. Reloading...");
+                    }}
+                  >
+                    Connect
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Default: http://localhost:8000 — Use an ngrok URL if accessing from the cloud preview
+                </p>
+              </div>
+            </div>
+          </Card>
+
           {/* Detection Settings */}
           <Card className="p-6 bg-card border-border">
             <div className="flex items-center gap-3 mb-6">
