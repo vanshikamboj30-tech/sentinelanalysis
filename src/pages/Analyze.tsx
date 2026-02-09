@@ -3,54 +3,36 @@ import UploadView from "@/components/sentinel/UploadView";
 import ProcessingView from "@/components/sentinel/ProcessingView";
 import DashboardView from "@/components/sentinel/DashboardView";
 import { VideoAnalysis } from "@/types/sentinel";
-import axios from "axios";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Home, Shield, Cpu } from "lucide-react";
-import { useSentinelSettings } from "@/hooks/useSentinelSettings";
 
 type View = "upload" | "processing" | "dashboard";
 
 const Analyze = () => {
   const [currentView, setCurrentView] = useState<View>("upload");
   const [analysisData, setAnalysisData] = useState<VideoAnalysis | null>(null);
-  const { settings } = useSentinelSettings();
+  
 
   const handleVideoUpload = async (file: File) => {
     setCurrentView("processing");
     
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      // Add email recipient from settings to send report to multiple emails
-      if (settings.emailRecipient) {
-        formData.append("email", settings.emailRecipient);
-      }
-
-      const response = await axios.post<VideoAnalysis>(
-        "http://localhost:8000/analyze",
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-
-      setAnalysisData(response.data);
+      const response = await api.analyzeVideo(file);
+      setAnalysisData(response);
       setCurrentView("dashboard");
       toast.success("Video analysis complete!");
     } catch (error) {
       console.error("Analysis error:", error);
-      // Check if this is a network error (likely localhost issue from cloud preview)
       const isNetworkError = error instanceof Error && error.message.includes('Network Error');
       if (isNetworkError && !window.location.hostname.includes('localhost')) {
-        toast.error("Cannot connect to backend. Run the frontend locally with 'npm run dev' to connect to your local backend.", {
+        toast.error("Cannot connect to backend. Set your backend URL in Settings or run the frontend locally.", {
           duration: 8000,
         });
       } else {
-        toast.error("Failed to analyze video. Make sure the backend is running on http://localhost:8000");
+        toast.error("Failed to analyze video. Make sure the backend is running.");
       }
       setCurrentView("upload");
     }

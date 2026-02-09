@@ -5,15 +5,22 @@ import { AnalysisReport, AnalyticsSummary, ThreatDistribution } from "@/types/se
 // For local development: http://localhost:8000
 // For production: use your deployed backend URL
 const getApiBase = () => {
-  // Check if running on Lovable preview (not localhost)
-  if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
-    // Return localStorage override if set, otherwise localhost (will fail with clear error)
-    return localStorage.getItem('SENTINEL_API_URL') || 'http://localhost:8000';
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('SENTINEL_API_URL');
+    if (stored) return stored;
   }
   return 'http://localhost:8000';
 };
 
 const API_BASE = getApiBase();
+
+// Allow runtime URL updates
+export const setApiBaseUrl = (url: string) => {
+  localStorage.setItem('SENTINEL_API_URL', url);
+  window.location.reload();
+};
+
+export const getCurrentApiUrl = () => API_BASE;
 
 export const api = {
   // Health & Status
