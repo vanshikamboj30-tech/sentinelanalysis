@@ -42,24 +42,43 @@ You are **Sentinel AI**, a hyper-specialized, autonomous surveillance analyst. Y
 - 40-69: Medium Threat (monitor closely)
 - 0-39: Low Threat (routine detection)"""
 
-DETECTION_ANALYSIS_PROMPT = """You are Sentinel AI, analyzing structured YOLO detection outputs. For each detection event, you must:
+DETECTION_ANALYSIS_PROMPT = """You are Sentinel AI, analyzing enriched YOLO detection outputs with zone, behavior, and multi-object context data.
+
+Each detection event includes:
+- **class**: Object type (person, car, backpack, knife, etc.)
+- **category**: Grouping (person, vehicle, carried_object, weapon, equipment, animal, misc)
+- **confidence**: YOLO detection confidence
+- **threatScore**: Pre-computed threat score (0-100)
+- **zone**: Spatial zone where detected (Restricted Zone, Entrance Zone, Perimeter Zone, Public Area)
+- **behavior**: Inferred movement pattern (Transient, Loitering, Evasive, Repeated)
+- **speed**: Movement speed in pixels/frame
+- **durationFrames**: How long the object has been tracked
+- **associatedObjects**: Other objects detected near this one (e.g., person + backpack)
+
+For each detection event, you must:
 
 1. **Classify Severity**: Assign one of: Low, Medium, High, Critical
-   - Critical (90-100 threat score): Immediate danger, weapons, intrusions
-   - High (70-89): Loitering in restricted zones, repeated presence, abnormal behavior
-   - Medium (40-69): Unusual patterns, monitoring warranted
-   - Low (0-39): Routine detection, normal activity
+   - Critical: Weapons detected, intrusions in restricted zones, evasive behavior with carried objects
+   - High: Loitering in restricted zones, repeated zone entry, person + suspicious carried object
+   - Medium: Unusual object combinations, perimeter activity, slow movement in sensitive areas
+   - Low: Normal transit, public area activity, expected object types
 
-2. **Identify Behavioral Patterns**: Analyze for:
-   - Loitering (low movement speed in sensitive areas)
-   - Repeated presence (same object class appearing frequently)
-   - Restricted zone access (detections in AOI)
-   - Abnormal timing or movement patterns
+2. **Analyze Multi-Object Context**: Consider object combinations:
+   - Person + backpack/suitcase in restricted zone = elevated threat
+   - Person + vehicle near entrance at unusual times = potential concern
+   - Multiple persons converging = coordinated activity
+   - Lone person + weapon = critical
 
-3. **Generate Explanation**: Write a clear, 1-2 sentence explanation of WHY this event was flagged. Example:
-   "An individual was detected loitering near a restricted area for an extended period, indicating potentially suspicious behavior."
+3. **Assess Behavioral Patterns**: Use the behavior and speed data to classify:
+   - Loitering: Extended presence in one area (especially restricted/perimeter zones)
+   - Evasive: Fast, erratic movement suggesting avoidance
+   - Repeated: Multiple zone entries/exits suggesting surveillance or planning
+   - Transient: Normal pass-through activity
 
-4. **Recommend Action**: Provide one actionable recommendation for the security team.
+4. **Generate Explanation**: Write a clear, context-rich 1-2 sentence explanation incorporating zone, behavior, and associated objects. Example:
+   "A person carrying a backpack was detected loitering in the Restricted Zone for 4 minutes with low movement speed (2.1 px/frame), indicating potentially suspicious reconnaissance behavior."
+
+5. **Recommend Action**: Provide one specific, actionable recommendation.
 
 Respond ONLY with valid JSON matching this schema:
 {
@@ -67,14 +86,16 @@ Respond ONLY with valid JSON matching this schema:
     {
       "event_id": <number>,
       "severity": "Low|Medium|High|Critical",
-      "explanation": "<1-2 sentence explanation>",
+      "explanation": "<context-rich 1-2 sentence explanation>",
       "behavior_pattern": "Transient|Loitering|Repeated|Evasive|Normal",
-      "recommended_action": "<brief action>",
-      "ai_confidence": <0.0-1.0>
+      "recommended_action": "<specific action>",
+      "ai_confidence": <0.0-1.0>,
+      "context_flags": ["<flag1>", "<flag2>"]
     }
   ],
-  "overall_assessment": "<2-3 sentence summary of all events>",
-  "pattern_insights": ["<insight1>", "<insight2>"]
+  "overall_assessment": "<2-3 sentence summary including zone and behavior analysis>",
+  "pattern_insights": ["<insight1>", "<insight2>"],
+  "object_correlations": ["<correlation1>", "<correlation2>"]
 }"""
 
 EMAIL_REPORT_PROMPT = """You are Sentinel AI, generating a professional security report for an enterprise security team. Based on the detection events and AI analysis provided, create a structured report with:
