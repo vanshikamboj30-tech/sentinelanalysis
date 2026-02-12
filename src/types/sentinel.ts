@@ -2,6 +2,7 @@ export interface DetectionEvent {
   id: number;
   timestamp: string;
   class: string;
+  category?: "person" | "vehicle" | "carried_object" | "weapon" | "equipment" | "animal" | "misc";
   confidence: number;
   threatScore: number;
   severity?: "Low" | "Medium" | "High" | "Critical";
@@ -9,6 +10,14 @@ export interface DetectionEvent {
   behaviorPattern?: "Transient" | "Loitering" | "Repeated" | "Evasive" | "Normal";
   recommendedAction?: string;
   aiConfidence?: number;
+  zone?: string;
+  zoneId?: string;
+  behavior?: string;
+  speed?: number;
+  durationFrames?: number;
+  associatedObjects?: string[];
+  trackerId?: number;
+  contextFlags?: string[];
 }
 
 export interface AIAnalysis {
@@ -19,9 +28,11 @@ export interface AIAnalysis {
     behavior_pattern: string;
     recommended_action: string;
     ai_confidence: number;
+    context_flags?: string[];
   }>;
   overall_assessment: string;
   pattern_insights: string[];
+  object_correlations?: string[];
 }
 
 export interface AIReportContent {
@@ -41,6 +52,7 @@ export interface VideoAnalysis {
     overallAssessment?: string;
     patternInsights?: string[];
     criticalEvents?: number;
+    objectDistribution?: Record<string, number>;
   };
   analysisId?: string;
   emailSent?: boolean;
@@ -65,6 +77,7 @@ export interface AnalysisReport {
     overallAssessment?: string;
     patternInsights?: string[];
     criticalEvents?: number;
+    objectDistribution?: Record<string, number>;
   };
   duration_seconds: number;
   total_events: number;

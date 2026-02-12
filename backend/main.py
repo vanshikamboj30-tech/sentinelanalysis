@@ -129,9 +129,10 @@ async def analyze_video(file: UploadFile = File(...), email: Optional[str] = Non
             ai_event = analyzed_map.get(event["id"], {})
             event["severity"] = ai_event.get("severity", _get_severity(event["threatScore"]))
             event["explanation"] = ai_event.get("explanation", "")
-            event["behaviorPattern"] = ai_event.get("behavior_pattern", "Normal")
+            event["behaviorPattern"] = ai_event.get("behavior_pattern", event.get("behavior", "Normal"))
             event["recommendedAction"] = ai_event.get("recommended_action", "")
             event["aiConfidence"] = ai_event.get("ai_confidence", 0)
+            event["contextFlags"] = ai_event.get("context_flags", [])
         
         # Update stats with AI insights
         result["stats"]["overallAssessment"] = ai_analysis.get("overall_assessment", "")
