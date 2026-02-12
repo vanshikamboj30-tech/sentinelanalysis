@@ -16,7 +16,8 @@ from dotenv import load_dotenv
 # Load environment variables first
 load_dotenv()
 
-from logic import process_video_logic, run_gemini_chat, process_frame_logic, process_annotated_frame_logic
+from logic import process_video_logic, process_frame_logic, process_annotated_frame_logic
+from openai_service import run_openai_chat
 from database import (
     save_video_analysis, save_alert, save_detection_event,
     get_recent_analyses, get_analytics_summary, get_threat_distribution,
@@ -81,7 +82,7 @@ async def system_status():
     return JSONResponse({
         "database": True,  # MongoDB configured
         "email": is_email_configured(),
-        "gemini": bool(os.getenv("GEMINI_API_KEY"))
+        "openai": bool(os.getenv("OPENAI_API_KEY"))
     })
 
 
@@ -234,10 +235,10 @@ Top Events:
 async def chat_with_ai(request: ChatRequest):
     """
     Accept user query and event logs,
-    send to Gemini API for analysis
+    send to OpenAI API for analysis
     """
     try:
-        reply = run_gemini_chat(request.query, request.logs)
+        reply = run_openai_chat(request.query, request.logs)
         return JSONResponse({"reply": reply})
     
     except Exception as e:

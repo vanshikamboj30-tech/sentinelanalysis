@@ -40,7 +40,7 @@ export const api = {
 
   async getStatus() {
     const response = await axios.get(`${API_BASE}/status`);
-    return response.data as { database: boolean; email: boolean; gemini: boolean };
+    return response.data as { database: boolean; email: boolean; openai: boolean };
   },
 
   // Analytics

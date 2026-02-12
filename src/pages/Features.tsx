@@ -45,10 +45,10 @@ const Features = () => {
     {
       icon: <Brain className="w-8 h-8" />,
       title: "AI-Powered Analysis",
-      shortDesc: "Gemini AI for intelligent insights",
-      fullDesc: "Integrated with Google's Gemini 2.0 Flash model, our Neural Core provides natural language understanding of surveillance data. Ask questions about events, get threat summaries, and receive intelligent recommendations based on detected patterns.",
+      shortDesc: "OpenAI-powered intelligent insights",
+      fullDesc: "Integrated with OpenAI's GPT-4o model, our Neural Core provides natural language understanding of surveillance data. Ask questions about events, get threat summaries, and receive intelligent recommendations based on detected patterns. OpenAI handles reasoning and interpretation while computer vision models handle raw detection.",
       specs: [
-        "Google Gemini 2.0 Flash integration",
+        "OpenAI GPT-4o integration",
         "Natural language query interface",
         "Context-aware responses",
         "Event log interpretation",

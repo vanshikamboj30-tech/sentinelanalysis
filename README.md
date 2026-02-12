@@ -1,73 +1,88 @@
-# Welcome to your Lovable project
-
-## Project info
+# Sentinel AI — Autonomous Surveillance Intelligence Platform
 
 **URL**: https://lovable.dev/projects/92eed872-340d-4d1e-8c27-dabea9378d78
 
-## How can I edit this code?
+## Overview
 
-There are several ways of editing your application.
+Sentinel AI is a military-grade autonomous surveillance intelligence system that combines real-time computer vision with OpenAI-powered reasoning for threat detection, behavioral analysis, and actionable security insights.
 
-**Use Lovable**
+## Architecture
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/92eed872-340d-4d1e-8c27-dabea9378d78) and start prompting.
+- **Computer Vision Layer**: YOLOv8 + ByteTrack for object detection and multi-object tracking
+- **Reasoning & Intelligence Layer**: OpenAI GPT-4o for threat explanation, natural language queries, and executive summaries
+- **Frontend**: React + TypeScript + Tailwind CSS + shadcn/ui
+- **Backend**: FastAPI (Python) with MongoDB Atlas for persistence
 
-Changes made via Lovable will be committed automatically to this repo.
+> **Design Principle**: OpenAI is used exclusively for reasoning and interpretation of structured detection outputs. It does NOT perform raw object detection — that is handled by YOLOv8.
 
-**Use your preferred IDE**
+## OpenAI Integration
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+Sentinel AI uses OpenAI as its primary AI provider for all natural language reasoning tasks:
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### How OpenAI Is Used
+| Task | Description |
+|------|-------------|
+| **Threat Explanation** | Generates human-readable explanations of detected threats |
+| **Surveillance Chat** | Answers natural language queries about detection events |
+| **Executive Summaries** | Produces concise intelligence reports from analysis data |
+| **Behavioral Analysis** | Classifies movement patterns (Transient, Loitering, Evasive) |
 
-Follow these steps:
+### Why OpenAI?
+- **Explainable AI**: Clear, deterministic prompts produce transparent, auditable responses
+- **Human-in-the-Loop**: AI provides recommendations; humans make final decisions
+- **Responsible AI**: Prompts are designed for professional, security-focused output without speculation
+- **Separation of Concerns**: Vision models detect; OpenAI interprets and explains
 
+### Configuration
+Set your OpenAI API key in the backend environment:
+```bash
+export OPENAI_API_KEY='your-api-key-here'
+```
+
+The centralized OpenAI logic lives in `backend/openai_service.py` with reusable, deterministic system prompts.
+
+## Key Features
+
+- **Video Analysis**: Upload surveillance footage for automated AI-powered analysis
+- **Live Feed**: Browser-based webcam recording with real-time detection
+- **AI Chat**: Natural language Q&A about surveillance events (OpenAI-powered)
+- **Threat Scoring**: Dynamic 0-100 scoring based on AOI, loitering, and confidence
+- **Email Alerts**: Automatic SMTP notifications for high-threat events
+- **Reports**: HTML email reports and downloadable summaries
+- **Analytics Dashboard**: Charts, stats, and threat distribution visualization
+- **System Health**: Real-time CPU/RAM monitoring
+
+## Tech Stack
+
+- **Frontend**: React, Vite, TypeScript, Tailwind CSS, shadcn/ui, Recharts
+- **Backend**: FastAPI, Python, OpenAI SDK, YOLOv8, ByteTrack (Supervision)
+- **Database**: MongoDB Atlas (via Motor async driver)
+- **Email**: SMTP (Gmail)
+
+## Getting Started
+
+### Frontend
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Backend
+```sh
+cd backend
+pip install -r requirements.txt
+cp .env.example .env  # Configure your API keys
+python main.py
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Buildathon Alignment
 
-**Use GitHub Codespaces**
+This project emphasizes:
+- **Explainable AI** — All AI-generated outputs include context and reasoning
+- **Human-in-the-Loop** — AI assists; operators decide
+- **Responsible AI** — No speculation, no autonomous actions, professional tone
+- **Clear Architecture** — Vision detection and AI reasoning are cleanly separated
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Deployment
 
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/92eed872-340d-4d1e-8c27-dabea9378d78) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Open [Lovable](https://lovable.dev/projects/92eed872-340d-4d1e-8c27-dabea9378d78) and click Share → Publish.

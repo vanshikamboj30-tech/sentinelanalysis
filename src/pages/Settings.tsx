@@ -13,7 +13,7 @@ import { api, setApiBaseUrl, getCurrentApiUrl } from "@/lib/api";
 
 const Settings = () => {
   const { settings, updateSettings, resetSettings, isLoaded } = useSentinelSettings();
-  const [systemStatus, setSystemStatus] = useState<{ database: boolean; email: boolean; gemini: boolean } | null>(null);
+  const [systemStatus, setSystemStatus] = useState<{ database: boolean; email: boolean; openai: boolean } | null>(null);
   const [backendUrl, setBackendUrl] = useState(getCurrentApiUrl());
 
   useEffect(() => {
@@ -72,8 +72,8 @@ const Settings = () => {
                 <span>Email</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${systemStatus.gemini ? 'bg-success' : 'bg-destructive'}`} />
-                <span>Gemini AI</span>
+                <div className={`w-2 h-2 rounded-full ${systemStatus.openai ? 'bg-success' : 'bg-destructive'}`} />
+                <span>OpenAI</span>
               </div>
             </div>
           </Card>
