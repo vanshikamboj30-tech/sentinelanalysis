@@ -4,6 +4,32 @@ export interface DetectionEvent {
   class: string;
   confidence: number;
   threatScore: number;
+  severity?: "Low" | "Medium" | "High" | "Critical";
+  explanation?: string;
+  behaviorPattern?: "Transient" | "Loitering" | "Repeated" | "Evasive" | "Normal";
+  recommendedAction?: string;
+  aiConfidence?: number;
+}
+
+export interface AIAnalysis {
+  analyzed_events: Array<{
+    event_id: number;
+    severity: string;
+    explanation: string;
+    behavior_pattern: string;
+    recommended_action: string;
+    ai_confidence: number;
+  }>;
+  overall_assessment: string;
+  pattern_insights: string[];
+}
+
+export interface AIReportContent {
+  incident_summary: string;
+  key_findings: string[];
+  behavioral_analysis: string;
+  risk_level: string;
+  recommendations: string[];
 }
 
 export interface VideoAnalysis {
@@ -12,9 +38,15 @@ export interface VideoAnalysis {
   stats: {
     totalDetections: number;
     highThreatEvents: number;
+    overallAssessment?: string;
+    patternInsights?: string[];
+    criticalEvents?: number;
   };
   analysisId?: string;
   emailSent?: boolean;
+  alertSent?: boolean;
+  aiAnalysis?: AIAnalysis;
+  reportContent?: AIReportContent;
 }
 
 export interface SystemHealth {
@@ -30,6 +62,9 @@ export interface AnalysisReport {
   stats: {
     totalDetections: number;
     highThreatEvents: number;
+    overallAssessment?: string;
+    patternInsights?: string[];
+    criticalEvents?: number;
   };
   duration_seconds: number;
   total_events: number;
@@ -41,11 +76,11 @@ export interface AnalysisReport {
 }
 
 export interface SentinelSettings {
-  detectionSensitivity: number; // 0-100
-  frameProcessingInterval: number; // milliseconds
-  alertThreshold: number; // threat score threshold for alerts
-  recordingDuration: number; // seconds
-  playbackSpeed: number; // 0.25, 0.5, 1, 1.5, 2
+  detectionSensitivity: number;
+  frameProcessingInterval: number;
+  alertThreshold: number;
+  recordingDuration: number;
+  playbackSpeed: number;
   autoSendEmail: boolean;
   emailRecipient: string;
 }

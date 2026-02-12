@@ -32,6 +32,8 @@ const ProcessingView = () => {
             "Loading ByteTrack multi-object tracker",
             "Processing video frames",
             "Analyzing threat patterns",
+            "Running OpenAI analysis on detections",
+            "Generating AI-powered insights",
           ].map((message, index) => (
             <div
               key={index}

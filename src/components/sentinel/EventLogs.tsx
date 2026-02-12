@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Terminal, Search, Filter, ArrowUpDown, AlertTriangle, Shield, CheckCircle2 } from "lucide-react";
+import { Terminal, Search, Filter, ArrowUpDown, AlertTriangle, Shield, CheckCircle2, Zap, Brain, ChevronDown, ChevronUp } from "lucide-react";
 import { DetectionEvent } from "@/types/sentinel";
 
 interface EventLogsProps {
@@ -18,6 +18,7 @@ const EventLogs = ({ events }: EventLogsProps) => {
   const [sortField, setSortField] = useState<SortField>("threatScore");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [filterThreat, setFilterThreat] = useState<"all" | "high" | "medium" | "low">("all");
+  const [expandedEvent, setExpandedEvent] = useState<number | null>(null);
 
   const getThreatColor = (score: number) => {
     if (score >= 70) return "text-destructive";
@@ -37,11 +38,27 @@ const EventLogs = ({ events }: EventLogsProps) => {
     return <CheckCircle2 className="w-3 h-3" />;
   };
 
+  const getSeverityBadge = (severity?: string) => {
+    const colors: Record<string, string> = {
+      Critical: "bg-destructive text-destructive-foreground",
+      High: "bg-destructive/80 text-destructive-foreground",
+      Medium: "bg-warning/80 text-warning-foreground",
+      Low: "bg-success/80 text-success-foreground",
+    };
+    if (!severity) return null;
+    return (
+      <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${colors[severity] || "bg-muted text-muted-foreground"}`}>
+        {severity}
+      </span>
+    );
+  };
+
   // Filter events
   const filteredEvents = events.filter((event) => {
     const matchesSearch = 
       event.class.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.timestamp.includes(searchQuery);
+      event.timestamp.includes(searchQuery) ||
+      (event.explanation || "").toLowerCase().includes(searchQuery.toLowerCase());
     
     let matchesThreat = true;
     if (filterThreat === "high") matchesThreat = event.threatScore >= 70;
@@ -92,6 +109,8 @@ const EventLogs = ({ events }: EventLogsProps) => {
     </button>
   );
 
+  const hasAIInsights = events.some(e => e.explanation || e.severity);
+
   return (
     <Card className="bg-card border-border overflow-hidden">
       {/* Header */}
@@ -103,6 +122,11 @@ const EventLogs = ({ events }: EventLogsProps) => {
           <span className="font-display text-sm font-semibold">
             EVENT LOGS
           </span>
+          {hasAIInsights && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary flex items-center gap-1">
+              <Brain className="w-3 h-3" /> AI-Analyzed
+            </span>
+          )}
           <span className="text-xs text-muted-foreground font-mono ml-2">
             {sortedEvents.length}/{events.length}
           </span>
@@ -157,15 +181,17 @@ const EventLogs = ({ events }: EventLogsProps) => {
               <SortButton field="timestamp">Timestamp</SortButton>
             </div>
             <div className="col-span-1">ID</div>
-            <div className="col-span-3">
+            <div className="col-span-2">
               <SortButton field="class">Detection</SortButton>
             </div>
-            <div className="col-span-3">
+            <div className="col-span-2">
               <SortButton field="confidence">Confidence</SortButton>
             </div>
-            <div className="col-span-3">
-              <SortButton field="threatScore">Threat Level</SortButton>
+            <div className="col-span-2">
+              <SortButton field="threatScore">Threat</SortButton>
             </div>
+            <div className="col-span-2">Severity</div>
+            <div className="col-span-1"></div>
           </div>
 
           {/* Table Body */}
@@ -177,42 +203,96 @@ const EventLogs = ({ events }: EventLogsProps) => {
               </div>
             ) : (
               sortedEvents.map((event) => (
-                <div
-                  key={event.id}
-                  className="grid grid-cols-12 gap-4 py-3 text-sm hover:bg-secondary/20 transition-colors group"
-                >
-                  <div className="col-span-2 font-mono text-primary">
-                    {event.timestamp}
-                  </div>
-                  <div className="col-span-1 text-muted-foreground font-mono">
-                    #{event.id.toString().padStart(3, "0")}
-                  </div>
-                  <div className="col-span-3">
-                    <span className="inline-flex items-center gap-2 px-2 py-0.5 rounded bg-secondary/50 text-foreground font-medium uppercase text-xs">
-                      {event.class}
-                    </span>
-                  </div>
-                  <div className="col-span-3">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-success rounded-full transition-all"
-                          style={{ width: `${event.confidence * 100}%` }}
-                        />
+                <div key={event.id}>
+                  <div
+                    className="grid grid-cols-12 gap-4 py-3 text-sm hover:bg-secondary/20 transition-colors group cursor-pointer"
+                    onClick={() => setExpandedEvent(expandedEvent === event.id ? null : event.id)}
+                  >
+                    <div className="col-span-2 font-mono text-primary">
+                      {event.timestamp}
+                    </div>
+                    <div className="col-span-1 text-muted-foreground font-mono">
+                      #{event.id.toString().padStart(3, "0")}
+                    </div>
+                    <div className="col-span-2">
+                      <span className="inline-flex items-center gap-2 px-2 py-0.5 rounded bg-secondary/50 text-foreground font-medium uppercase text-xs">
+                        {event.class}
+                      </span>
+                    </div>
+                    <div className="col-span-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-success rounded-full transition-all"
+                            style={{ width: `${event.confidence * 100}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-mono text-success w-12">
+                          {(event.confidence * 100).toFixed(1)}%
+                        </span>
                       </div>
-                      <span className="text-xs font-mono text-success w-12">
-                        {(event.confidence * 100).toFixed(1)}%
-                      </span>
+                    </div>
+                    <div className="col-span-2">
+                      <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded border ${getThreatBg(event.threatScore)} ${getThreatColor(event.threatScore)}`}>
+                        {getThreatIcon(event.threatScore)}
+                        <span className="font-mono text-xs font-bold">
+                          {event.threatScore}/100
+                        </span>
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      {getSeverityBadge(event.severity)}
+                    </div>
+                    <div className="col-span-1 flex items-center justify-end">
+                      {(event.explanation || event.recommendedAction) && (
+                        expandedEvent === event.id
+                          ? <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                          : <ChevronDown className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                      )}
                     </div>
                   </div>
-                  <div className="col-span-3">
-                    <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded border ${getThreatBg(event.threatScore)} ${getThreatColor(event.threatScore)}`}>
-                      {getThreatIcon(event.threatScore)}
-                      <span className="font-mono text-xs font-bold">
-                        {event.threatScore}/100
-                      </span>
+                  
+                  {/* Expanded AI Insight Row */}
+                  {expandedEvent === event.id && (event.explanation || event.recommendedAction) && (
+                    <div className="px-4 pb-3 ml-8 border-l-2 border-primary/30">
+                      <div className="bg-primary/5 rounded-lg p-3 space-y-2">
+                        {event.explanation && (
+                          <div className="flex items-start gap-2">
+                            <Brain className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              <span className="text-primary font-semibold">AI Explanation: </span>
+                              {event.explanation}
+                            </p>
+                          </div>
+                        )}
+                        {event.behaviorPattern && (
+                          <div className="flex items-center gap-2">
+                            <Zap className="w-3.5 h-3.5 text-warning shrink-0" />
+                            <span className="text-xs text-muted-foreground">
+                              <span className="text-warning font-semibold">Behavior: </span>
+                              {event.behaviorPattern}
+                            </span>
+                          </div>
+                        )}
+                        {event.recommendedAction && (
+                          <div className="flex items-start gap-2">
+                            <Shield className="w-3.5 h-3.5 text-success mt-0.5 shrink-0" />
+                            <p className="text-xs text-muted-foreground">
+                              <span className="text-success font-semibold">Action: </span>
+                              {event.recommendedAction}
+                            </p>
+                          </div>
+                        )}
+                        {event.aiConfidence !== undefined && event.aiConfidence > 0 && (
+                          <div className="flex items-center gap-2 pt-1 border-t border-border/30">
+                            <span className="text-[10px] text-muted-foreground font-mono">
+                              AI Confidence: {(event.aiConfidence * 100).toFixed(0)}%
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               ))
             )}
@@ -229,6 +309,9 @@ const EventLogs = ({ events }: EventLogsProps) => {
           <span className="text-success">{events.filter(e => e.threatScore < 40).length} LOW</span>
         </div>
         <div className="flex items-center gap-2">
+          {hasAIInsights && (
+            <span className="text-[10px] font-mono text-primary mr-2">OpenAI ANALYZED</span>
+          )}
           <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
           <span className="text-xs font-mono text-muted-foreground">
             MONITORING
