@@ -1,6 +1,6 @@
 """
 Email Service Module for Sentinel AI
-Handles sending email reports and alerts via SMTP.
+Handles sending AI-powered email reports and alerts via SMTP.
 """
 import os
 import smtplib
@@ -29,9 +29,7 @@ def is_email_configured() -> bool:
 
 
 def parse_email_recipients(email_string: str) -> List[str]:
-    """
-    Parse comma-separated email addresses into a list
-    """
+    """Parse comma-separated email addresses into a list"""
     if not email_string:
         return []
     return [email.strip() for email in email_string.split(",") if email.strip()]
@@ -44,38 +42,29 @@ def send_email(
     text_body: Optional[str] = None,
     attachments: Optional[List[str]] = None
 ) -> bool:
-    """
-    Send an email via SMTP to one or more recipients
-    to_email can be a single email or comma-separated list
-    Returns: True if successful, False otherwise
-    """
+    """Send an email via SMTP to one or more recipients"""
     if not is_email_configured():
         print("❌ Email not configured. Set SMTP_USER and SMTP_PASSWORD in .env")
         return False
     
-    # Parse recipients (supports comma-separated list)
     recipients = parse_email_recipients(to_email)
     if not recipients:
         print("❌ No valid email recipients provided")
         return False
     
     try:
-        # Create message
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
         msg["From"] = SMTP_USER
-        msg["To"] = ", ".join(recipients)  # Display all recipients
+        msg["To"] = ", ".join(recipients)
         
-        # Add text part
         if text_body:
             part1 = MIMEText(text_body, "plain")
             msg.attach(part1)
         
-        # Add HTML part
         part2 = MIMEText(html_body, "html")
         msg.attach(part2)
         
-        # Add attachments if any
         if attachments:
             for filepath in attachments:
                 if os.path.exists(filepath):
@@ -89,7 +78,6 @@ def send_email(
                     )
                     msg.attach(part)
         
-        # Send email to all recipients
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
             server.starttls()
             server.login(SMTP_USER, SMTP_PASSWORD)
@@ -109,29 +97,72 @@ def send_email(
         return False
 
 
+def _severity_color(severity: str) -> str:
+    colors = {
+        "Critical": "#dc2626",
+        "High": "#ef4444",
+        "Medium": "#f59e0b",
+        "Low": "#22c55e",
+    }
+    return colors.get(severity, "#888888")
+
+
+def _severity_badge(severity: str) -> str:
+    color = _severity_color(severity)
+    return f'<span style="background:{color};color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:bold;">{severity.upper()}</span>'
+
+
 def send_alert_email(
     events: List[Dict],
     video_url: str,
+    ai_analysis: Dict = None,
     to_email: Optional[str] = None
 ) -> bool:
-    """
-    Send a high-threat alert email
-    """
+    """Send a high-threat alert email with AI-generated analysis"""
     recipient = to_email or REPORT_EMAIL
     
-    # Build HTML email
+    # Build AI insights section
+    ai_section = ""
+    if ai_analysis:
+        overall = ai_analysis.get("overall_assessment", "")
+        insights = ai_analysis.get("pattern_insights", [])
+        if overall:
+            ai_section += f"""
+            <div style="background:#1e293b;border-left:4px solid #3b82f6;padding:16px;border-radius:0 8px 8px 0;margin:16px 0;">
+                <h4 style="color:#3b82f6;margin:0 0 8px 0;font-size:14px;">🤖 AI ANALYSIS (OpenAI)</h4>
+                <p style="color:#e2e8f0;margin:0;font-size:13px;line-height:1.6;">{overall}</p>
+            </div>"""
+        if insights:
+            ai_section += '<div style="margin:12px 0;"><h4 style="color:#f59e0b;font-size:13px;">📊 Pattern Insights:</h4><ul style="color:#cbd5e1;font-size:12px;line-height:1.8;">'
+            for insight in insights:
+                ai_section += f"<li>{insight}</li>"
+            ai_section += "</ul></div>"
+
+    # Build event rows with AI explanations
     event_rows = ""
-    for i, event in enumerate(events[:10], 1):  # Limit to top 10
-        threat_color = "#ef4444" if event.get("threatScore", 0) >= 70 else "#f59e0b"
+    analyzed_map = {}
+    if ai_analysis:
+        for ae in ai_analysis.get("analyzed_events", []):
+            analyzed_map[ae.get("event_id")] = ae
+
+    for i, event in enumerate(events[:10], 1):
+        severity = event.get("severity", "High")
+        ai_event = analyzed_map.get(event.get("id"), {})
+        explanation = ai_event.get("explanation", event.get("explanation", ""))
+        action = ai_event.get("recommended_action", event.get("recommendedAction", ""))
+        
+        explanation_row = ""
+        if explanation:
+            explanation_row = f'<tr><td colspan="4" style="padding:4px 8px 12px 24px;border-bottom:1px solid #333;color:#94a3b8;font-size:11px;font-style:italic;">💡 {explanation}{" → " + action if action else ""}</td></tr>'
+        
         event_rows += f"""
         <tr>
-            <td style="padding: 8px; border-bottom: 1px solid #333;">{i}</td>
-            <td style="padding: 8px; border-bottom: 1px solid #333;">{event.get('timestamp', 'N/A')}</td>
-            <td style="padding: 8px; border-bottom: 1px solid #333;">{event.get('class', 'Unknown').upper()}</td>
-            <td style="padding: 8px; border-bottom: 1px solid #333; color: {threat_color}; font-weight: bold;">
-                {event.get('threatScore', 0)}%
-            </td>
+            <td style="padding:8px;border-bottom:1px solid #333;">{i}</td>
+            <td style="padding:8px;border-bottom:1px solid #333;">{event.get('timestamp', 'N/A')}</td>
+            <td style="padding:8px;border-bottom:1px solid #333;">{event.get('class', 'Unknown').upper()}</td>
+            <td style="padding:8px;border-bottom:1px solid #333;">{_severity_badge(severity)} {event.get('threatScore', 0)}%</td>
         </tr>
+        {explanation_row}
         """
     
     html_body = f"""
@@ -140,12 +171,11 @@ def send_alert_email(
     <head>
         <style>
             body {{ font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a0a; color: #fff; padding: 20px; }}
-            .container {{ max-width: 600px; margin: 0 auto; background: #1a1a1a; border-radius: 8px; padding: 24px; }}
+            .container {{ max-width: 650px; margin: 0 auto; background: #1a1a1a; border-radius: 8px; padding: 24px; }}
             .header {{ text-align: center; border-bottom: 2px solid #ef4444; padding-bottom: 16px; margin-bottom: 24px; }}
             .header h1 {{ color: #ef4444; margin: 0; font-size: 24px; }}
-            .alert-badge {{ background: #ef4444; color: white; padding: 4px 12px; border-radius: 4px; font-size: 12px; }}
             table {{ width: 100%; border-collapse: collapse; margin: 16px 0; }}
-            th {{ background: #333; padding: 10px; text-align: left; }}
+            th {{ background: #333; padding: 10px; text-align: left; font-size: 12px; }}
             .footer {{ text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #333; color: #888; font-size: 12px; }}
             .btn {{ display: inline-block; background: #3b82f6; color: white; padding: 10px 24px; text-decoration: none; border-radius: 4px; margin-top: 16px; }}
         </style>
@@ -154,20 +184,22 @@ def send_alert_email(
         <div class="container">
             <div class="header">
                 <h1>🚨 SENTINEL AI ALERT</h1>
-                <span class="alert-badge">HIGH THREAT DETECTED</span>
+                <span style="background:#ef4444;color:white;padding:4px 12px;border-radius:4px;font-size:12px;">HIGH THREAT DETECTED</span>
+                <p style="color:#94a3b8;font-size:12px;margin:8px 0 0;">Powered by OpenAI • {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
             </div>
             
-            <p><strong>{len(events)}</strong> high-threat events detected in surveillance footage.</p>
-            <p><strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p><strong>{len(events)}</strong> high-severity events detected in surveillance footage.</p>
             
-            <h3 style="color: #f59e0b;">📋 Top Threat Events</h3>
+            {ai_section}
+            
+            <h3 style="color:#f59e0b;">📋 Threat Events</h3>
             <table>
                 <thead>
                     <tr>
                         <th>#</th>
                         <th>Timestamp</th>
                         <th>Class</th>
-                        <th>Threat</th>
+                        <th>Severity / Threat</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -180,30 +212,19 @@ def send_alert_email(
             </div>
             
             <div class="footer">
-                <p>This is an automated alert from Sentinel AI Surveillance System</p>
-                <p>Do not reply to this email</p>
+                <p>Sentinel AI Surveillance System • AI-powered analysis by OpenAI</p>
+                <p>This report was automatically generated. Human review recommended.</p>
             </div>
         </div>
     </body>
     </html>
     """
     
-    text_body = f"""
-SENTINEL AI - HIGH THREAT ALERT
-
-{len(events)} high-threat events detected in surveillance footage.
-Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-Top Events:
-"""
-    for i, event in enumerate(events[:10], 1):
-        text_body += f"{i}. [{event.get('timestamp', 'N/A')}] {event.get('class', 'Unknown').upper()} - Threat: {event.get('threatScore', 0)}%\n"
-    
-    text_body += f"\nVideo URL: {video_url}"
+    text_body = f"SENTINEL AI ALERT - {len(events)} high-threat events detected. Video: {video_url}"
     
     return send_email(
         to_email=recipient,
-        subject=f"🚨 SENTINEL AI ALERT - {len(events)} High-Threat Events Detected",
+        subject=f"🚨 SENTINEL AI ALERT - {len(events)} High-Severity Events Detected",
         html_body=html_body,
         text_body=text_body
     )
@@ -214,40 +235,66 @@ def send_analysis_report(
     video_url: str,
     events: List[Dict],
     stats: Dict,
+    ai_report: Dict = None,
     to_email: Optional[str] = None
 ) -> bool:
-    """
-    Send a complete analysis report email
-    """
+    """Send a complete AI-powered analysis report email"""
     recipient = to_email or REPORT_EMAIL
     
-    # Calculate threat breakdown
+    # Threat breakdown
     high_count = sum(1 for e in events if e.get("threatScore", 0) >= 70)
     medium_count = sum(1 for e in events if 40 <= e.get("threatScore", 0) < 70)
     low_count = sum(1 for e in events if e.get("threatScore", 0) < 40)
     
-    # Build event rows
+    # AI report sections
+    ai_summary_section = ""
+    ai_findings_section = ""
+    ai_recommendations_section = ""
+    
+    if ai_report:
+        incident_summary = ai_report.get("incident_summary", "")
+        risk_level = ai_report.get("risk_level", "Unknown")
+        behavioral = ai_report.get("behavioral_analysis", "")
+        findings = ai_report.get("key_findings", [])
+        recommendations = ai_report.get("recommendations", [])
+        
+        if incident_summary:
+            ai_summary_section = f"""
+            <div style="background:#1e293b;border-left:4px solid #3b82f6;padding:16px;border-radius:0 8px 8px 0;margin:16px 0;">
+                <h4 style="color:#3b82f6;margin:0 0 8px 0;">🤖 AI INCIDENT SUMMARY</h4>
+                <p style="color:#e2e8f0;margin:0 0 8px 0;line-height:1.6;">{incident_summary}</p>
+                <p style="margin:0;"><strong>Risk Level:</strong> {_severity_badge(risk_level)}</p>
+                {f'<p style="color:#94a3b8;margin:8px 0 0;font-size:12px;">📐 {behavioral}</p>' if behavioral else ''}
+            </div>"""
+        
+        if findings:
+            ai_findings_section = '<div style="margin:16px 0;"><h4 style="color:#f59e0b;">🔍 Key Findings:</h4><ul style="color:#cbd5e1;font-size:13px;line-height:1.8;">'
+            for f in findings:
+                ai_findings_section += f"<li>{f}</li>"
+            ai_findings_section += "</ul></div>"
+        
+        if recommendations:
+            ai_recommendations_section = '<div style="background:#1a2332;padding:16px;border-radius:8px;margin:16px 0;"><h4 style="color:#22c55e;margin:0 0 8px 0;">✅ Recommended Actions:</h4><ol style="color:#cbd5e1;font-size:13px;line-height:1.8;margin:0;padding-left:20px;">'
+            for r in recommendations:
+                ai_recommendations_section += f"<li>{r}</li>"
+            ai_recommendations_section += "</ol></div>"
+
+    # Build event rows with AI explanations
     event_rows = ""
-    for event in events[:20]:  # Limit to 20 events
+    for event in events[:20]:
         threat = event.get("threatScore", 0)
-        if threat >= 70:
-            threat_color = "#ef4444"
-            threat_label = "HIGH"
-        elif threat >= 40:
-            threat_color = "#f59e0b"
-            threat_label = "MEDIUM"
-        else:
-            threat_color = "#22c55e"
-            threat_label = "LOW"
+        severity = event.get("severity", "High" if threat >= 70 else "Medium" if threat >= 40 else "Low")
+        explanation = event.get("explanation", "")
+        
+        explanation_cell = f'<td style="padding:8px;border-bottom:1px solid #333;color:#94a3b8;font-size:11px;max-width:200px;">{explanation}</td>' if explanation else '<td style="padding:8px;border-bottom:1px solid #333;color:#555;font-size:11px;">—</td>'
         
         event_rows += f"""
         <tr>
-            <td style="padding: 8px; border-bottom: 1px solid #333;">{event.get('timestamp', 'N/A')}</td>
-            <td style="padding: 8px; border-bottom: 1px solid #333;">{event.get('class', 'Unknown').upper()}</td>
-            <td style="padding: 8px; border-bottom: 1px solid #333;">{event.get('confidence', 0):.1f}%</td>
-            <td style="padding: 8px; border-bottom: 1px solid #333; color: {threat_color};">
-                <strong>{threat}%</strong> ({threat_label})
-            </td>
+            <td style="padding:8px;border-bottom:1px solid #333;">{event.get('timestamp', 'N/A')}</td>
+            <td style="padding:8px;border-bottom:1px solid #333;">{event.get('class', 'Unknown').upper()}</td>
+            <td style="padding:8px;border-bottom:1px solid #333;">{event.get('confidence', 0):.1f}%</td>
+            <td style="padding:8px;border-bottom:1px solid #333;">{_severity_badge(severity)} {threat}%</td>
+            {explanation_cell}
         </tr>
         """
     
@@ -257,18 +304,15 @@ def send_analysis_report(
     <head>
         <style>
             body {{ font-family: 'Segoe UI', Arial, sans-serif; background: #0a0a0a; color: #fff; padding: 20px; }}
-            .container {{ max-width: 700px; margin: 0 auto; background: #1a1a1a; border-radius: 8px; padding: 24px; }}
+            .container {{ max-width: 750px; margin: 0 auto; background: #1a1a1a; border-radius: 8px; padding: 24px; }}
             .header {{ text-align: center; border-bottom: 2px solid #3b82f6; padding-bottom: 16px; margin-bottom: 24px; }}
             .header h1 {{ color: #3b82f6; margin: 0; font-size: 24px; }}
             .stats-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 24px 0; }}
             .stat-card {{ background: #262626; padding: 16px; border-radius: 8px; text-align: center; }}
             .stat-value {{ font-size: 28px; font-weight: bold; }}
             .stat-label {{ color: #888; font-size: 12px; text-transform: uppercase; }}
-            .high {{ color: #ef4444; }}
-            .medium {{ color: #f59e0b; }}
-            .low {{ color: #22c55e; }}
-            table {{ width: 100%; border-collapse: collapse; margin: 16px 0; }}
-            th {{ background: #333; padding: 10px; text-align: left; }}
+            table {{ width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }}
+            th {{ background: #333; padding: 10px; text-align: left; font-size: 11px; }}
             .footer {{ text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #333; color: #888; font-size: 12px; }}
             .btn {{ display: inline-block; background: #3b82f6; color: white; padding: 10px 24px; text-decoration: none; border-radius: 4px; margin-top: 16px; }}
         </style>
@@ -278,25 +322,28 @@ def send_analysis_report(
             <div class="header">
                 <h1>📊 SENTINEL AI ANALYSIS REPORT</h1>
                 <p style="color: #888; margin: 8px 0 0 0;">Video: {video_filename}</p>
+                <p style="color: #64748b; margin: 4px 0 0; font-size: 11px;">AI Analysis powered by OpenAI • {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
             </div>
             
-            <p><strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            {ai_summary_section}
             
             <h3 style="color: #3b82f6;">📈 Summary Statistics</h3>
             <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-value high">{high_count}</div>
+                    <div class="stat-value" style="color:#ef4444;">{high_count}</div>
                     <div class="stat-label">High Threat</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value medium">{medium_count}</div>
+                    <div class="stat-value" style="color:#f59e0b;">{medium_count}</div>
                     <div class="stat-label">Medium Threat</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value low">{low_count}</div>
+                    <div class="stat-value" style="color:#22c55e;">{low_count}</div>
                     <div class="stat-label">Low Threat</div>
                 </div>
             </div>
+            
+            {ai_findings_section}
             
             <h3 style="color: #3b82f6;">📋 Detection Events ({len(events)} total)</h3>
             <table>
@@ -305,7 +352,8 @@ def send_analysis_report(
                         <th>Timestamp</th>
                         <th>Class</th>
                         <th>Confidence</th>
-                        <th>Threat Level</th>
+                        <th>Severity</th>
+                        <th>AI Explanation</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -315,13 +363,15 @@ def send_analysis_report(
             
             {f'<p style="color: #888; font-style: italic;">Showing first 20 of {len(events)} events</p>' if len(events) > 20 else ''}
             
+            {ai_recommendations_section}
+            
             <div style="text-align: center;">
                 <a href="{video_url}" class="btn">View Processed Video</a>
             </div>
             
             <div class="footer">
-                <p>Sentinel AI Video Surveillance Analysis System</p>
-                <p>Report generated automatically after video processing</p>
+                <p>Sentinel AI Surveillance System • AI-powered analysis by OpenAI</p>
+                <p>This report was automatically generated. Human review is recommended before taking action.</p>
             </div>
         </div>
     </body>
@@ -329,7 +379,7 @@ def send_analysis_report(
     """
     
     text_body = f"""
-SENTINEL AI - VIDEO ANALYSIS REPORT
+SENTINEL AI - VIDEO ANALYSIS REPORT (AI-Powered)
 
 Video: {video_filename}
 Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}

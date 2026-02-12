@@ -1,9 +1,11 @@
 """
 Centralized OpenAI service module for Sentinel AI.
 Handles all natural language reasoning and interpretation tasks:
+- Detection event analysis & severity classification
 - Threat explanation generation
 - Surveillance assistant queries (chat)
 - Executive summaries and analytics insights
+- AI-powered email report content generation
 """
 
 import os
@@ -20,6 +22,7 @@ client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 # Default model for all tasks
 DEFAULT_MODEL = "gpt-4o"
+
 
 # ======================== SYSTEM PROMPTS ========================
 
@@ -39,6 +42,52 @@ You are **Sentinel AI**, a hyper-specialized, autonomous surveillance analyst. Y
 - 40-69: Medium Threat (monitor closely)
 - 0-39: Low Threat (routine detection)"""
 
+DETECTION_ANALYSIS_PROMPT = """You are Sentinel AI, analyzing structured YOLO detection outputs. For each detection event, you must:
+
+1. **Classify Severity**: Assign one of: Low, Medium, High, Critical
+   - Critical (90-100 threat score): Immediate danger, weapons, intrusions
+   - High (70-89): Loitering in restricted zones, repeated presence, abnormal behavior
+   - Medium (40-69): Unusual patterns, monitoring warranted
+   - Low (0-39): Routine detection, normal activity
+
+2. **Identify Behavioral Patterns**: Analyze for:
+   - Loitering (low movement speed in sensitive areas)
+   - Repeated presence (same object class appearing frequently)
+   - Restricted zone access (detections in AOI)
+   - Abnormal timing or movement patterns
+
+3. **Generate Explanation**: Write a clear, 1-2 sentence explanation of WHY this event was flagged. Example:
+   "An individual was detected loitering near a restricted area for an extended period, indicating potentially suspicious behavior."
+
+4. **Recommend Action**: Provide one actionable recommendation for the security team.
+
+Respond ONLY with valid JSON matching this schema:
+{
+  "analyzed_events": [
+    {
+      "event_id": <number>,
+      "severity": "Low|Medium|High|Critical",
+      "explanation": "<1-2 sentence explanation>",
+      "behavior_pattern": "Transient|Loitering|Repeated|Evasive|Normal",
+      "recommended_action": "<brief action>",
+      "ai_confidence": <0.0-1.0>
+    }
+  ],
+  "overall_assessment": "<2-3 sentence summary of all events>",
+  "pattern_insights": ["<insight1>", "<insight2>"]
+}"""
+
+EMAIL_REPORT_PROMPT = """You are Sentinel AI, generating a professional security report for an enterprise security team. Based on the detection events and AI analysis provided, create a structured report with:
+
+1. **Incident Summary**: 2-3 sentence overview of what happened
+2. **Key Findings**: Top threats with explanations
+3. **Behavioral Analysis**: Movement patterns and anomalies
+4. **Risk Assessment**: Overall risk level and justification
+5. **Recommendations**: 3-5 actionable next steps
+
+Tone: Professional, clear, actionable. Suitable for enterprise security leadership.
+Format: Return as JSON with keys: incident_summary, key_findings (array), behavioral_analysis, risk_level (Low/Medium/High/Critical), recommendations (array)."""
+
 THREAT_EXPLANATION_PROMPT = """You are Sentinel AI, a security-focused AI assistant. Given detection events from a surveillance system, provide a clear, concise threat explanation. Focus on:
 1. What was detected and where
 2. Why it may be a threat (behavioral indicators)
@@ -51,6 +100,101 @@ EXECUTIVE_SUMMARY_PROMPT = """You are Sentinel AI, generating an executive summa
 3. Statistical highlights
 4. Actionable recommendations
 Format as a brief, professional intelligence report."""
+
+
+# ======================== CORE FUNCTIONS ========================
+
+def analyze_detections(events: list) -> dict:
+    """
+    Analyze YOLO detection outputs using OpenAI.
+    Classifies severity, identifies patterns, generates explanations.
+    Returns enriched events with AI insights.
+    """
+    if not client:
+        return {
+            "analyzed_events": [],
+            "overall_assessment": "OpenAI not configured. Raw detections available without AI analysis.",
+            "pattern_insights": [],
+            "error": "OPENAI_API_KEY is not configured."
+        }
+
+    if not events:
+        return {
+            "analyzed_events": [],
+            "overall_assessment": "No detection events to analyze.",
+            "pattern_insights": []
+        }
+
+    try:
+        log_data = json.dumps(events, indent=2)
+
+        response = client.chat.completions.create(
+            model=DEFAULT_MODEL,
+            messages=[
+                {"role": "system", "content": DETECTION_ANALYSIS_PROMPT},
+                {"role": "user", "content": f"Analyze these YOLO detection events:\n{log_data}"},
+            ],
+            temperature=0.2,
+            max_tokens=2048,
+            response_format={"type": "json_object"},
+        )
+
+        result = json.loads(response.choices[0].message.content)
+        return result
+
+    except Exception as e:
+        print(f"Error analyzing detections: {e}")
+        return {
+            "analyzed_events": [],
+            "overall_assessment": f"AI analysis failed: {str(e)}",
+            "pattern_insights": [],
+            "error": str(e)
+        }
+
+
+def generate_email_report_content(events: list, stats: dict, ai_analysis: dict = None) -> dict:
+    """
+    Generate AI-powered email report content from detection events.
+    Returns structured content for email template rendering.
+    """
+    if not client:
+        return {
+            "incident_summary": "AI-powered summary unavailable. See raw detection data below.",
+            "key_findings": [],
+            "behavioral_analysis": "N/A",
+            "risk_level": "Unknown",
+            "recommendations": ["Configure OpenAI API key for AI-powered reports."]
+        }
+
+    try:
+        context = {
+            "events": events,
+            "stats": stats,
+            "ai_analysis": ai_analysis or {}
+        }
+
+        response = client.chat.completions.create(
+            model=DEFAULT_MODEL,
+            messages=[
+                {"role": "system", "content": EMAIL_REPORT_PROMPT},
+                {"role": "user", "content": f"Generate a security report for this data:\n{json.dumps(context, indent=2)}"},
+            ],
+            temperature=0.3,
+            max_tokens=1024,
+            response_format={"type": "json_object"},
+        )
+
+        return json.loads(response.choices[0].message.content)
+
+    except Exception as e:
+        print(f"Error generating email report: {e}")
+        return {
+            "incident_summary": f"Report generation error: {str(e)}",
+            "key_findings": [],
+            "behavioral_analysis": "N/A",
+            "risk_level": "Unknown",
+            "recommendations": []
+        }
 
 
 def run_openai_chat(user_query: str, event_logs: list) -> str:

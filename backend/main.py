@@ -17,7 +17,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from logic import process_video_logic, process_frame_logic, process_annotated_frame_logic
-from openai_service import run_openai_chat
+from openai_service import (
+    run_openai_chat, analyze_detections, generate_email_report_content,
+    generate_threat_explanation, generate_executive_summary
+)
 from database import (
     save_video_analysis, save_alert, save_detection_event,
     get_recent_analyses, get_analytics_summary, get_threat_distribution,
@@ -64,6 +67,10 @@ class AlertRequest(BaseModel):
     sendEmail: Optional[bool] = True
 
 
+class AnalyzeDetectionsRequest(BaseModel):
+    events: list
+
+
 @app.get("/health")
 async def health_check():
     """Return system CPU and RAM usage"""
@@ -80,7 +87,7 @@ async def health_check():
 async def system_status():
     """Return system configuration status"""
     return JSONResponse({
-        "database": True,  # MongoDB configured
+        "database": True,
         "email": is_email_configured(),
         "openai": bool(os.getenv("OPENAI_API_KEY"))
     })
@@ -94,7 +101,7 @@ class AnalyzeRequest(BaseModel):
 async def analyze_video(file: UploadFile = File(...), email: Optional[str] = None):
     """
     Accept video upload, process with YOLO and ByteTrack,
-    return processed video URL and event logs
+    analyze with OpenAI, return processed video URL, events, and AI insights
     """
     if not file.content_type or not file.content_type.startswith("video/"):
         raise HTTPException(status_code=400, detail="Invalid file type. Must be a video file.")
@@ -106,10 +113,32 @@ async def analyze_video(file: UploadFile = File(...), email: Optional[str] = Non
         f.write(content)
     
     try:
-        # Process video and get results
+        # Step 1: Process video with YOLO + ByteTrack
         result = process_video_logic(temp_input_path)
         
-        # Save analysis to database
+        # Step 2: Analyze detections with OpenAI
+        ai_analysis = analyze_detections(result["events"])
+        result["aiAnalysis"] = ai_analysis
+        
+        # Enrich events with AI severity and explanations
+        analyzed_map = {}
+        for ae in ai_analysis.get("analyzed_events", []):
+            analyzed_map[ae.get("event_id")] = ae
+        
+        for event in result["events"]:
+            ai_event = analyzed_map.get(event["id"], {})
+            event["severity"] = ai_event.get("severity", _get_severity(event["threatScore"]))
+            event["explanation"] = ai_event.get("explanation", "")
+            event["behaviorPattern"] = ai_event.get("behavior_pattern", "Normal")
+            event["recommendedAction"] = ai_event.get("recommended_action", "")
+            event["aiConfidence"] = ai_event.get("ai_confidence", 0)
+        
+        # Update stats with AI insights
+        result["stats"]["overallAssessment"] = ai_analysis.get("overall_assessment", "")
+        result["stats"]["patternInsights"] = ai_analysis.get("pattern_insights", [])
+        result["stats"]["criticalEvents"] = sum(1 for e in result["events"] if e.get("severity") == "Critical")
+        
+        # Step 3: Save to database
         analysis_id = save_video_analysis(
             video_filename=file.filename,
             video_url=result["videoUrl"],
@@ -117,18 +146,36 @@ async def analyze_video(file: UploadFile = File(...), email: Optional[str] = Non
             stats=result["stats"]
         )
         
-        # Send email report to specified recipients
+        # Step 4: Generate AI-powered email report and send
         if is_email_configured():
+            report_content = generate_email_report_content(
+                result["events"], result["stats"], ai_analysis
+            )
             email_sent = send_analysis_report(
                 video_filename=file.filename,
                 video_url=result["videoUrl"],
                 events=result["events"],
                 stats=result["stats"],
-                to_email=email  # Pass the email from request
+                ai_report=report_content,
+                to_email=email
             )
             result["emailSent"] = email_sent
+            result["reportContent"] = report_content
         else:
             result["emailSent"] = False
+        
+        # Step 5: Auto-send immediate alerts for Critical/High severity
+        critical_high = [e for e in result["events"] if e.get("severity") in ("Critical", "High")]
+        if critical_high and is_email_configured():
+            send_alert_email(
+                events=critical_high,
+                video_url=result["videoUrl"],
+                ai_analysis=ai_analysis,
+                to_email=email
+            )
+            result["alertSent"] = True
+        else:
+            result["alertSent"] = False
         
         result["analysisId"] = analysis_id
         
@@ -142,6 +189,19 @@ async def analyze_video(file: UploadFile = File(...), email: Optional[str] = Non
         if os.path.exists(temp_input_path):
             os.remove(temp_input_path)
         raise HTTPException(status_code=500, detail=f"Video processing failed: {str(e)}")
+
+
+@app.post("/analyze-detections")
+async def analyze_detections_endpoint(request: AnalyzeDetectionsRequest):
+    """
+    Analyze raw YOLO detection events with OpenAI.
+    Returns AI-powered severity classification, explanations, and insights.
+    """
+    try:
+        analysis = analyze_detections(request.events)
+        return JSONResponse(analysis)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Detection analysis failed: {str(e)}")
 
 
 @app.post("/process-frame")
@@ -184,9 +244,12 @@ async def process_frame(request: FrameRequest):
 @app.post("/send-alert")
 async def send_alert(request: AlertRequest):
     """
-    Send email/SMS notifications for high-threat events
+    Send email/SMS notifications for high-threat events with AI analysis
     """
     try:
+        # Analyze events with OpenAI before alerting
+        ai_analysis = analyze_detections(request.events)
+        
         # Save alert to database
         alert_id = save_alert(
             events=request.events,
@@ -203,28 +266,16 @@ async def send_alert(request: AlertRequest):
             email_sent = send_alert_email(
                 events=request.events,
                 video_url=request.videoUrl,
+                ai_analysis=ai_analysis,
                 to_email=request.email
             )
-        
-        # Generate alert summary
-        alert_summary = f"""
-SENTINEL AI - HIGH THREAT ALERT
-
-{len(request.events)} high-threat events detected in surveillance footage.
-
-Top Events:
-"""
-        for i, event in enumerate(request.events[:5], 1):
-            alert_summary += f"{i}. [{event['timestamp']}] {event['class'].upper()} - Threat: {event['threatScore']}%\n"
-        
-        alert_summary += f"\nVideo URL: {request.videoUrl}"
         
         return JSONResponse({
             "success": True,
             "alertId": alert_id,
             "emailSent": email_sent,
+            "aiAnalysis": ai_analysis,
             "message": f"Alert processed for {len(request.events)} events",
-            "summary": alert_summary
         })
     
     except Exception as e:
@@ -332,7 +383,7 @@ class ResendReportRequest(BaseModel):
 
 @app.post("/reports/{report_id}/resend")
 async def resend_report(report_id: str, request: ResendReportRequest):
-    """Resend a report via email"""
+    """Resend a report via email with AI-generated content"""
     try:
         report = get_video_analysis(report_id)
         if not report:
@@ -341,12 +392,21 @@ async def resend_report(report_id: str, request: ResendReportRequest):
         if not is_email_configured():
             raise HTTPException(status_code=400, detail="Email not configured")
         
+        # Generate fresh AI report content
+        ai_analysis = analyze_detections(report.get("events", []))
+        report_content = generate_email_report_content(
+            report.get("events", []),
+            report.get("stats", {}),
+            ai_analysis
+        )
+        
         email_sent = send_analysis_report(
             video_filename=report.get("video_filename", "Unknown"),
             video_url=report.get("video_url", ""),
             events=report.get("events", []),
             stats=report.get("stats", {}),
-            to_email=request.email  # Use the email from request
+            ai_report=report_content,
+            to_email=request.email
         )
         
         return JSONResponse({
@@ -357,6 +417,17 @@ async def resend_report(report_id: str, request: ResendReportRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to resend report: {str(e)}")
+
+
+def _get_severity(threat_score: int) -> str:
+    """Fallback severity from threat score when AI is unavailable"""
+    if threat_score >= 90:
+        return "Critical"
+    elif threat_score >= 70:
+        return "High"
+    elif threat_score >= 40:
+        return "Medium"
+    return "Low"
 
 
 if __name__ == "__main__":
