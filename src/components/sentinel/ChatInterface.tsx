@@ -91,7 +91,7 @@ const ChatInterface = ({ events }: ChatInterfaceProps) => {
             NEURAL CORE
             <Sparkles className="w-3 h-3 text-primary" />
           </span>
-          <p className="text-[10px] text-muted-foreground font-mono">GEMINI AI • READY</p>
+          <p className="text-[10px] text-muted-foreground font-mono">OPENAI • READY</p>
         </div>
       </div>
 

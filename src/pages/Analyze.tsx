@@ -66,7 +66,7 @@ const Analyze = () => {
                 <div className="flex items-center gap-2 mt-1">
                   <Cpu className="w-3 h-3 text-muted-foreground" />
                   <p className="text-sm text-muted-foreground font-mono">
-                    YOLOV8 • BYTETRACK • GEMINI AI
+                    YOLOV8 • BYTETRACK • OPENAI
                   </p>
                 </div>
               </div>

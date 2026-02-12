@@ -1,6 +1,6 @@
 # Sentinel AI Backend
 
-FastAPI backend for video surveillance analysis using YOLOv8 and Gemini AI.
+FastAPI backend for video surveillance analysis using YOLOv8 and OpenAI.
 
 ## Setup Instructions
 
@@ -29,23 +29,23 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 4. Set Gemini API Key
+### 4. Set OpenAI API Key
 
-Get your API key from: https://aistudio.google.com/app/apikey
+Get your API key from: https://platform.openai.com/api-keys
 
 **Linux/Mac:**
 ```bash
-export GEMINI_API_KEY="your-api-key-here"
+export OPENAI_API_KEY="your-api-key-here"
 ```
 
 **Windows (Command Prompt):**
 ```bash
-set GEMINI_API_KEY=your-api-key-here
+set OPENAI_API_KEY=your-api-key-here
 ```
 
 **Windows (PowerShell):**
 ```bash
-$env:GEMINI_API_KEY="your-api-key-here"
+$env:OPENAI_API_KEY="your-api-key-here"
 ```
 
 ### 5. Run the Backend

@@ -42,7 +42,7 @@ const FrontPage = () => {
               <h3 className="font-display text-lg font-semibold">AI Intelligence</h3>
             </div>
             <p className="text-sm text-muted-foreground">
-              Gemini-powered analytical engine for threat assessment and behavioral analysis
+              OpenAI-powered analytical engine for threat assessment and behavioral analysis
             </p>
           </Card>
 

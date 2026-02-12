@@ -150,7 +150,7 @@ const UploadView = ({ onUpload }: UploadViewProps) => {
           {[
             { label: "Object Detection", value: "YOLOv8" },
             { label: "Multi-Tracking", value: "ByteTrack" },
-            { label: "AI Analysis", value: "Gemini" },
+            { label: "AI Analysis", value: "OpenAI" },
           ].map((item) => (
             <div
               key={item.label}
