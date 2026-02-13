@@ -104,7 +104,6 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
                 src={resolvedUrl}
                 className="w-full h-full object-contain"
                 controls
-                crossOrigin="anonymous"
                 onError={() => { setHasError(true); setIsLoading(false); }}
                 onLoadedData={() => { setHasError(false); setIsLoading(false); }}
               />
