@@ -7,7 +7,32 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
+from bson import ObjectId
 from dotenv import load_dotenv
+
+
+def _serialize_doc(doc: Dict) -> Dict:
+    """Recursively convert MongoDB-specific types to JSON-serializable types."""
+    if doc is None:
+        return doc
+    serialized = {}
+    for key, value in doc.items():
+        if isinstance(value, ObjectId):
+            serialized[key] = str(value)
+        elif isinstance(value, datetime):
+            serialized[key] = value.isoformat()
+        elif isinstance(value, list):
+            serialized[key] = [
+                _serialize_doc(item) if isinstance(item, dict) else
+                str(item) if isinstance(item, ObjectId) else
+                item.isoformat() if isinstance(item, datetime) else item
+                for item in value
+            ]
+        elif isinstance(value, dict):
+            serialized[key] = _serialize_doc(value)
+        else:
+            serialized[key] = value
+    return serialized
 
 # Load environment variables
 load_dotenv()
@@ -97,11 +122,10 @@ def get_video_analysis(analysis_id: str) -> Optional[Dict]:
     if db is None:
         return None
     
-    from bson import ObjectId
     try:
         result = db.video_analyses.find_one({"_id": ObjectId(analysis_id)})
         if result:
-            result["_id"] = str(result["_id"])
+            return _serialize_doc(result)
         return result
     except Exception as e:
         print(f"Error fetching analysis: {e}")
@@ -118,9 +142,7 @@ def get_recent_analyses(limit: int = 10) -> List[Dict]:
         results = list(db.video_analyses.find()
                       .sort("created_at", -1)
                       .limit(limit))
-        for r in results:
-            r["_id"] = str(r["_id"])
-        return results
+        return [_serialize_doc(r) for r in results]
     except Exception as e:
         print(f"Error fetching recent analyses: {e}")
         return []
@@ -167,9 +189,7 @@ def get_events_by_threat_level(min_threat: int = 70, limit: int = 50) -> List[Di
                       .find({"threat_score": {"$gte": min_threat}})
                       .sort("created_at", -1)
                       .limit(limit))
-        for r in results:
-            r["_id"] = str(r["_id"])
-        return results
+        return [_serialize_doc(r) for r in results]
     except Exception as e:
         print(f"Error fetching high-threat events: {e}")
         return []
@@ -219,9 +239,7 @@ def get_recent_alerts(limit: int = 20) -> List[Dict]:
         results = list(db.alerts.find()
                       .sort("created_at", -1)
                       .limit(limit))
-        for r in results:
-            r["_id"] = str(r["_id"])
-        return results
+        return [_serialize_doc(r) for r in results]
     except Exception as e:
         print(f"Error fetching alerts: {e}")
         return []
