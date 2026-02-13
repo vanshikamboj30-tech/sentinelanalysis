@@ -77,7 +77,7 @@ const ChatInterface = ({ events }: ChatInterfaceProps) => {
   ];
 
   return (
-    <Card className="bg-card border-border h-full flex flex-col overflow-hidden">
+    <Card className="bg-card border-border h-[600px] flex flex-col overflow-hidden">
       {/* Header */}
       <div className="bg-gradient-to-r from-secondary/80 to-secondary/40 border-b border-border px-4 py-3 flex items-center gap-3">
         <div className="relative">
