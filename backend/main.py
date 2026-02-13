@@ -1,6 +1,7 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+import logging
 from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
 from pydantic import BaseModel
 from typing import Optional, List
@@ -69,6 +70,25 @@ class AlertRequest(BaseModel):
 
 class AnalyzeDetectionsRequest(BaseModel):
     events: list
+
+
+@app.get("/video/{filename}")
+async def serve_video(filename: str):
+    """Serve processed video files safely with proper validation."""
+    # Prevent path traversal
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    
+    file_path = STATIC_DIR / filename
+    if not file_path.exists():
+        logging.error(f"Video file not found: {file_path}")
+        raise HTTPException(status_code=404, detail="Video file not found")
+    
+    return FileResponse(
+        path=str(file_path),
+        media_type="video/mp4",
+        filename=filename
+    )
 
 
 @app.get("/health")

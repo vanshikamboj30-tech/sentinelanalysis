@@ -4,6 +4,8 @@ from pathlib import Path
 from ultralytics import YOLO
 import supervision as sv
 import os
+import re
+import uuid
 from datetime import datetime
 from collections import defaultdict
 
@@ -211,7 +213,9 @@ def process_video_logic(input_video_path: str, zones: dict = None):
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     frame_shape = (height, width)
 
-    output_filename = f"processed_{Path(input_video_path).name}"
+    # Sanitize filename: remove spaces/special chars, add uuid for uniqueness
+    safe_stem = re.sub(r'[^\w\-]', '_', Path(input_video_path).stem)
+    output_filename = f"processed_{safe_stem}_{uuid.uuid4().hex[:8]}.mp4"
     output_path = Path("static") / output_filename
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     out = cv2.VideoWriter(str(output_path), fourcc, fps, (width, height))
@@ -339,7 +343,7 @@ def process_video_logic(input_video_path: str, zones: dict = None):
         class_counts[e["class"]] += 1
 
     return {
-        "videoUrl": f"http://localhost:8000/static/{output_filename}",
+        "videoUrl": f"/video/{output_filename}",
         "events": events,
         "stats": {
             "totalDetections": len(events),
