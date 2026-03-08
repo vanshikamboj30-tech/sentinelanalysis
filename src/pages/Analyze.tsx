@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { Home, Shield, Cpu } from "lucide-react";
 
 type View = "upload" | "processing" | "dashboard";
@@ -14,13 +15,16 @@ type View = "upload" | "processing" | "dashboard";
 const Analyze = () => {
   const [currentView, setCurrentView] = useState<View>("upload");
   const [analysisData, setAnalysisData] = useState<VideoAnalysis | null>(null);
-  
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const handleVideoUpload = async (file: File) => {
     setCurrentView("processing");
+    setUploadProgress(0);
     
     try {
-      const response = await api.analyzeVideo(file);
+      const response = await api.analyzeVideo(file, (progress) => {
+        setUploadProgress(progress);
+      });
       setAnalysisData(response);
       setCurrentView("dashboard");
       toast.success("Video analysis complete!");
@@ -41,6 +45,7 @@ const Analyze = () => {
   const handleReset = () => {
     setCurrentView("upload");
     setAnalysisData(null);
+    setUploadProgress(0);
   };
 
   return (
@@ -78,6 +83,17 @@ const Analyze = () => {
               </Button>
             </Link>
           </div>
+
+          {/* Upload Progress */}
+          {currentView === "processing" && uploadProgress > 0 && uploadProgress < 100 && (
+            <div className="mb-6 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground font-mono">UPLOADING VIDEO</span>
+                <span className="text-primary font-mono font-bold">{uploadProgress}%</span>
+              </div>
+              <Progress value={uploadProgress} className="h-2" />
+            </div>
+          )}
 
           {currentView === "upload" && <UploadView onUpload={handleVideoUpload} />}
           {currentView === "processing" && <ProcessingView />}
