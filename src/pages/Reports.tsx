@@ -1,41 +1,38 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Home, FileText, Search, Calendar, AlertTriangle, CheckCircle, Clock, Eye, Mail, Download } from "lucide-react";
+import { Home, FileText, Search, Calendar, AlertTriangle, CheckCircle, Clock, Eye, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { AnalysisReport } from "@/types/sentinel";
+import { useQuery } from "@tanstack/react-query";
 
 const Reports = () => {
-  const [reports, setReports] = useState<AnalysisReport[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
 
-  useEffect(() => {
-    loadReports();
-  }, []);
-
-  const loadReports = async () => {
-    try {
+  const { data: reports = [], isLoading: loading } = useQuery({
+    queryKey: ["reports"],
+    queryFn: async () => {
       const data = await api.getRecentData();
-      setReports(data.analyses || []);
-    } catch (error) {
-      console.error("Failed to load reports:", error);
-      // Check if this is a network error (likely localhost issue from cloud preview)
-      const isNetworkError = error instanceof Error && error.message.includes('Network Error');
-      if (isNetworkError && !window.location.hostname.includes('localhost')) {
-        toast.error("Cannot connect to backend. Run the frontend locally with 'npm run dev' to connect to your local backend.");
-      } else {
-        toast.error("Failed to load reports. Make sure the backend is running on http://localhost:8000");
+      return (data.analyses || []) as AnalysisReport[];
+    },
+    staleTime: 30_000,
+    retry: 1,
+    meta: {
+      onError: (error: Error) => {
+        const isNetworkError = error.message.includes('Network Error');
+        if (isNetworkError && !window.location.hostname.includes('localhost')) {
+          toast.error("Cannot connect to backend. Run the frontend locally with 'npm run dev' to connect to your local backend.");
+        } else {
+          toast.error("Failed to load reports. Make sure the backend is running.");
+        }
       }
-    } finally {
-      setLoading(false);
     }
-  };
+  });
 
   const filteredReports = reports.filter((report) =>
     report.video_filename?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -94,7 +91,7 @@ const Reports = () => {
         </Card>
 
         {/* Stats Summary */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <Card className="p-4 bg-card border-border text-center">
             <div className="text-2xl font-display font-bold text-primary">{reports.length}</div>
             <div className="text-xs text-muted-foreground uppercase">Total Reports</div>
@@ -153,7 +150,7 @@ const Reports = () => {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                      <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <FileText className="w-5 h-5 text-primary" />
                         <h3 className="font-display font-semibold text-lg">
                           {report.video_filename || "Untitled Video"}
@@ -168,7 +165,7 @@ const Reports = () => {
                         </Badge>
                       </div>
 
-                      <div className="flex items-center gap-6 text-sm text-muted-foreground mb-3">
+                      <div className="flex items-center gap-4 md:gap-6 text-sm text-muted-foreground mb-3 flex-wrap">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-4 h-4" />
                           {formatDate(report.created_at)}
@@ -187,7 +184,7 @@ const Reports = () => {
                         </span>
                       </div>
 
-                      <div className="flex gap-4 text-sm">
+                      <div className="flex gap-4 text-sm flex-wrap">
                         <span>
                           <span className="text-muted-foreground">Total Events:</span>{" "}
                           <span className="font-mono">{report.total_events}</span>

@@ -5,8 +5,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Brain, Send, Sparkles, AlertCircle } from "lucide-react";
 import { DetectionEvent } from "@/types/sentinel";
-import { toast } from "sonner";
-import axios from "axios";
+import { api } from "@/lib/api";
 
 interface ChatInterfaceProps {
   events: DetectionEvent[];
@@ -30,7 +29,6 @@ const ChatInterface = ({ events }: ChatInterfaceProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: "smooth" });
@@ -46,17 +44,10 @@ const ChatInterface = ({ events }: ChatInterfaceProps) => {
     setIsLoading(true);
 
     try {
-      const response = await axios.post<{ reply: string }>(
-        "http://localhost:8000/chat",
-        {
-          query: userMessage,
-          logs: events,
-        }
-      );
-
+      const response = await api.chat(userMessage, events);
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: response.data.reply },
+        { role: "assistant", content: response.reply },
       ]);
     } catch (error: any) {
       console.error("Chat error:", error);

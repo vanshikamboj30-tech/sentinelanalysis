@@ -3,12 +3,16 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Shield, Video, Brain, Activity, ArrowRight, Eye, Settings, FileText, BarChart3 } from "lucide-react";
 import SystemHealth from "@/components/sentinel/SystemHealth";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const FrontPage = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <div className="container mx-auto px-4 py-12">
+        <div className="absolute top-6 right-6">
+          <ThemeToggle />
+        </div>
         <header className="text-center mb-16 pt-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <Shield className="w-12 h-12 text-primary glow-primary" />
