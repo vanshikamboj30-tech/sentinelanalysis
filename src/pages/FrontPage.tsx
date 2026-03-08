@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Shield, Video, Brain, Activity, ArrowRight, Eye, Settings, FileText, BarChart3 } from "lucide-react";
 import SystemHealth from "@/components/sentinel/SystemHealth";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const FrontPage = () => {
   return (
